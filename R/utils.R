@@ -250,8 +250,8 @@
 #   - `metrics`: Named list containing calculated diagnostic values.
 #   - `messages`: Character vector with warnings or success messages.
 #
-# @export
-check_cic_assumptions <- function(Y, X, Z) {
+
+.check_cic_assumptions <- function(Y, X, Z) {
   # Input validation
   stopifnot(
     is.numeric(Y) && length(Y) >= 4,
