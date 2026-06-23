@@ -22,3 +22,7 @@ src/config.h
 
 # Check
 *.tar.gz
+
+_Rtestlib/
+..Rcheck/
+vignettes/cic-intro.R_Rtestlib/
