@@ -252,13 +252,7 @@
 #'     }
 #'   }
 #'   \item{messages}{Character vector: Warnings or success messages}
-#' @examples
-#' set.seed(42)
-#' d <- sim_dgp(500)
-#' diag <- check_cic_assumptions(d$Y, d$X, d$Z)
-#' print(diag)
-#' @seealso \code{\link{cic}}, \code{\link{sim_dgp}}
-#' @export
+#' #' @export
 check_cic_assumptions <- function(Y, X, Z) {
   # Input validation
   stopifnot(
@@ -402,5 +396,12 @@ check_cic_assumptions <- function(Y, X, Z) {
     class = "cic_diagnostics"
   )
 }
+#' @examples
+#' set.seed(42)
+#' d <- sim_dgp(500)
+#' diag <- check_cic_assumptions(d$Y, d$X, d$Z)
+#' print(diag)
+#' @seealso \code{\link{cic}}, \code{\link{sim_dgp}}
+
 
 

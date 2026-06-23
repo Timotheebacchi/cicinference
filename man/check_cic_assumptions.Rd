@@ -26,16 +26,8 @@ A list with elements:
 }
 }
 \item{messages}{Character vector: Warnings or success messages}
+#' @export
 }
 \description{
 Validates that data satisfy the theoretical requirements for the CiC estimator.
-}
-\examples{
-set.seed(42)
-d <- sim_dgp(500)
-diag <- check_cic_assumptions(d$Y, d$X, d$Z)
-print(diag)
-}
-\seealso{
-\code{\link{cic}}, \code{\link{sim_dgp}}
 }

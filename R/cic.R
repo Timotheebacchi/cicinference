@@ -2,7 +2,7 @@
 #' @description Computes the CiC estimator for nonlinear difference-in-differences models
 #' as described in Athey & Imbens (2006).
 #' @useDynLib cic, .registration = TRUE
-#' @importFrom Rcpp evalCpp       
+#' @importFrom Rcpp evalCpp         
 #' @import stats
 #' @param Y Numeric vector: Outcome variable
 #' @param X Numeric vector: Treatment/endogenous variable
