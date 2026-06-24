@@ -1,6 +1,6 @@
   # cic: Changes-in-Changes Estimator
 
-  An R package implementing the plug-in **Changes-in-Changes (CiC) estimator** from Mugnier & d'Hautefeuille & Chor & l'Hour with asymptotic confidence intervals and bootstrap alternatives. 
+  An R package implementing the plug-in **Changes-in-Changes (CiC) estimator** from Mugnier & d'Haultefoeuille & Chhor & l'Hour with asymptotic confidence intervals and bootstrap alternatives. 
   It also constructs some tests to look if the estimator is usable with the data given and respects assumptions given in Asymptotic Properties of Empirical Quantile-Based Estimators (2026)
 
   ## Features
