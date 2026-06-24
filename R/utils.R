@@ -253,7 +253,7 @@
 #'   }
 #'   \item{messages}{Character vector: Warnings or success messages}
 #' @export
-.check_cic_assumptions <- function(Y, X, Z) {
+check_cic_assumptions <- function(Y, X, Z) {
   # Input validation
   stopifnot(
     is.numeric(Y) && length(Y) >= 4,
