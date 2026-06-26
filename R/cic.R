@@ -10,6 +10,8 @@
 #' @param method Character vector: Estimation method(s). Options are:
 #'   \itemize{
 #'     \item{"no-split"}{Nonparametric method using full sample (fastest)}
+#'     \item{"split"}{Sample-splitting variance estimator}
+#'     \item{"kde"}{Epanechnikov KDE variance estimator}
 #'     \item{"bse"}{Bootstrap standard-error method}
 #'     \item{"bpc"}{Bootstrap percentile method}
 #'   }
@@ -21,7 +23,7 @@
 #'   \item{ci}{Data frame with confidence intervals (columns: lower, upper, length, method)}
 #'   \item{n}{Sample sizes (Y, X, Z)}
 #'   \item{method}{Estimation method(s) used}
-#'   \item{h}{Bandwidth used (for no-split)}
+#'   \item{h}{Bandwidth used for the nonparametric density estimators}
 #'   \item{level}{Confidence level}
 #' @examples
 #' set.seed(42)
@@ -32,7 +34,7 @@
 #' @references Athey, S., & Imbens, G. W. (2006). Identification and inference in
 #'   nonlinear difference-in-differences models. Econometrica, 74(2), 431-497.
 #' @export
-cic <- function(Y, X, Z, method = c("no-split", "bse", "bpc"), B = 200, h = NULL, level = 0.95) {
+cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B = 200, h = NULL, level = 0.95) {
 
   # ── Input checks ─────────────────────────────────────────────────────────────
   method <- match.arg(method, several.ok = TRUE)
@@ -109,6 +111,65 @@ cic <- function(Y, X, Z, method = c("no-split", "bse", "bpc"), B = 200, h = NULL
     rm(Ysortdiff, FYhat, fUhat, fUhat_unif, fUhat_t2, fUhat_d2, est_full)
   }
 
+  if ("split" %in% method) {
+    n_half <- min(floor(n1 / 2), floor(n2 / 2), floor(n3 / 2))
+    if (n_half < 2) {
+      stop("split method requires at least two observations in the first half-sample.")
+    }
+
+    FZ1   <- stats::ecdf(Z[seq_len(n_half)])
+    FZ2   <- stats::ecdf(Z[seq.int(n3 - n_half + 1L, n3)])
+    Uhat1 <- FZ1(X[seq_len(n_half)])
+    Uhat2 <- FZ2(X[seq.int(n2 - n_half + 1L, n2)])
+
+    Ysort1diff  <- diff(sort(Y[seq_len(n_half)]))
+    Ysort2diff  <- diff(sort(Y[seq.int(n1 - n_half + 1L, n1)]))
+    FYhat_split <- seq_len(n_half - 1L) / n_half
+
+    est1   <- .make_density_estimator(sort(Uhat1), FYhat_split)
+    est2   <- .make_density_estimator(sort(Uhat2), FYhat_split)
+    fUhat1 <- est1$estimate(1 / log(n2), pointwise = 1)
+    fUhat2 <- est2$estimate(1 / log(n2), pointwise = 1)
+
+    eta_hat_split <- .fast_eta(Ysort1diff, fUhat1, Ysort2diff, fUhat2, FYhat_split)
+    sigma_sq_split <- lbda1_3 * eta_hat_split + lbda2 * eps_hat
+    se_split <- sqrt(max(sigma_sq_split, 0) / N)
+
+    ci_rows[["split"]] <- data.frame(
+      method = "split",
+      lower  = theta_hat - z_a * se_split,
+      upper  = theta_hat + z_a * se_split,
+      length = 2 * z_a * se_split
+    )
+  }
+
+  if ("kde" %in% method) {
+    n_kde <- length(Uhat)
+    idx_sort <- order(Uhat)
+    U_sort   <- Uhat[idx_sort]
+    grid     <- seq_len(n_kde) / n_kde
+    k        <- findInterval(grid - 1e-12, U_sort) + 1L
+    ok       <- k <= n_kde
+
+    f_half <- f_y_hat_epnechikov(Y, qcdf_transform, h / 2)
+    f_one  <- f_y_hat_epnechikov(Y, qcdf_transform, h)
+    f_two  <- f_y_hat_epnechikov(Y, qcdf_transform, h * 2)
+
+    eta_ai_d2 <- .compute_eta_from_f(f_half, Uhat, idx_sort, k, ok, n_kde)
+    eta_ai    <- .compute_eta_from_f(f_one,  Uhat, idx_sort, k, ok, n_kde)
+    eta_ai_t2 <- .compute_eta_from_f(f_two,  Uhat, idx_sort, k, ok, n_kde)
+
+    sigma_sq_kde <- 2 * eta_ai + eps_hat
+    se_kde <- sqrt(max(sigma_sq_kde, 0) / N)
+
+    ci_rows[["kde"]] <- data.frame(
+      method = "kde",
+      lower  = theta_hat - z_a * se_kde,
+      upper  = theta_hat + z_a * se_kde,
+      length = 2 * z_a * se_kde
+    )
+  }
+
   if (any(c("bse", "bpc") %in% method)) {
     # Use internal R implementation of bootstrap core
     # (fallback to pure R if Rcpp version unavailable)
@@ -156,7 +217,7 @@ cic <- function(Y, X, Z, method = c("no-split", "bse", "bpc"), B = 200, h = NULL
       level     = level,
       n         = c(n1 = n1, n2 = n2, n3 = n3),
         method    = method,
-      h         = if ("no-split" %in% method) h else NA_real_
+      h         = if (any(c("no-split", "kde") %in% method)) h else NA_real_
     ),
     class = "cic"
   )

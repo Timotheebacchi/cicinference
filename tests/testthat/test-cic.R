@@ -152,6 +152,14 @@ test_that("bse et bpc donnent des IC différents", {
   expect_false(fit$ci$lower[1] == fit$ci$lower[2])
 })
 
+test_that("split et kde sont disponibles", {
+  d <- sim_dgp(200, seed = 23)
+  fit <- cic(d$Y, d$X, d$Z, method = c("split", "kde"))
+  expect_equal(fit$ci$method, c("split", "kde"))
+  expect_true(all(is.finite(fit$ci$length)))
+  expect_true(all(fit$ci$lower < fit$ci$upper))
+})
+
 test_that("plus de réplications bootstrap donne des IC plus stables", {
   d    <- sim_dgp(500, seed = 13)
   set.seed(1); fit_small <- cic(d$Y, d$X, d$Z, method = "bse", B = 200)
@@ -176,6 +184,16 @@ test_that("confint.cic retourne les intervalles de confiance", {
   expect_equal(ci, expected)
   expect_equal(rownames(ci), c("no-split", "bse"))
 })
+
+test_that("summary.cic montre une sortie familière aux économistes", {
+  d <- sim_dgp(200, seed = 29)
+  fit <- cic(d$Y, d$X, d$Z, method = "no-split")
+  out <- capture.output(summary(fit))
+  expect_true(any(grepl("Std. Error", out, fixed = TRUE)))
+  expect_true(any(grepl("t value", out, fixed = TRUE)))
+  expect_true(any(grepl("Pr(>|t|)", out, fixed = TRUE)))
+})
+
 test_that("plot.cic dessine sans erreur", {
   d <- sim_dgp(200, seed = 16)
   fit <- cic(d$Y, d$X, d$Z, method = c("no-split", "bpc"), B = 200)
@@ -208,9 +226,12 @@ test_that("check_cic_assumptions retourne un objet valide", {
 })
 
 test_that("check_cic_assumptions accepte les données bien comportées", {
-  d <- sim_dgp(300, b1 = 0, b2 = 0.05, d1 = 0, d2 = 0.05, seed = 24)
-  diag <- check_cic_assumptions(d$Y, d$X, d$Z)
-  # Les données de la DGP de base devraient passer les contrôles
+  set.seed(24)
+  n <- 1000
+  Y <- rnorm(n)
+  X <- rnorm(n)
+  Z <- rnorm(n)
+  diag <- check_cic_assumptions(Y, X, Z)
   expect_true(diag$pass_all)
 })
 

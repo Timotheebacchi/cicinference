@@ -8,6 +8,8 @@
   - **Core estimator**: Average of quantile-transformed ranks
   - **Confidence intervals via three methods**:
     - No-split / Full-sample (nonparametric, uses all data)
+    - Split-sample variance estimator
+    - KDE-based variance estimator
     - Bootstrap standard-error (bse)
     - Bootstrap percentile (bpc)
   - **Performance**: C++ backend via Rcpp

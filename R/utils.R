@@ -61,6 +61,14 @@
   )
 }
 
+.compute_eta_from_f <- function(f_vals, Uhat, idx_sort, k, ok, n) {
+  C2     <- mean(Uhat / f_vals)
+  sinvf  <- rev(cumsum(rev(1 / f_vals[idx_sort]))) / n
+  T1     <- numeric(n)
+  T1[ok] <- sinvf[k[ok]]
+  mean((T1 - C2)^2)
+}
+
 # Computes the fast eta variance term without building an n x n matrix.
 # This routine replaced the earlier matrix-based formulation and is the
 # active implementation used by cic().

@@ -1,3 +1,30 @@
+# ── Internal helpers ───────────────────────────────────────────────────────────
+
+.cic_inference_table <- function(object) {
+  ci <- object$ci
+  alpha <- (1 - object$level) / 2
+  z_a <- stats::qnorm(1 - alpha)
+
+  se <- ifelse(ci$method == "bpc", NA_real_, ci$length / (2 * z_a))
+  stat <- ifelse(is.na(se) | se <= 0, NA_real_, object$theta_hat / se)
+  p_value <- ifelse(is.na(stat), NA_real_, 2 * stats::pnorm(abs(stat), lower.tail = FALSE))
+
+  out <- data.frame(
+    Method = ci$method,
+    Estimate = rep(object$theta_hat, nrow(ci)),
+    Std.Error = se,
+    t.value = stat,
+    p.value = p_value,
+    Lower.CI = ci$lower,
+    Upper.CI = ci$upper,
+    Length = ci$length,
+    check.names = FALSE
+  )
+
+  names(out)[3:8] <- c("Std. Error", "t value", "Pr(>|t|)", "Lower CI", "Upper CI", "Length")
+  out
+}
+
 # ── print.cic ──────────────────────────────────────────────────────────────────
 
 #' @export
@@ -11,19 +38,17 @@ print.cic <- function(x, digits = 4, ...) {
   if (!is.na(x$h))
     cat(sprintf("Bandwidth (h)        : %.4f\n", x$h))
   cat(rep("-", 44), "\n", sep = "")
-  cat("Confidence intervals:\n\n")
 
-  # Format the CI table
-  ci <- x$ci
-  ci$lower  <- round(ci$lower,  digits)
-  ci$upper  <- round(ci$upper,  digits)
-  ci$length <- round(ci$length, digits)
+  tab <- .cic_inference_table(x)
+  numeric_cols <- vapply(tab, is.numeric, logical(1))
+  tab[numeric_cols] <- lapply(tab[numeric_cols], round, digits = digits)
 
-  label_map <- c(`no-split` = "No-split", bpc = "Bootstrap (pct.)",
-                 bse   = "Bootstrap (SE)")
-  ci$method <- label_map[ci$method]
+  label_map <- c(`no-split` = "No-split", split = "Split",
+                 kde = "KDE", bpc = "Bootstrap (pct.)",
+                 bse = "Bootstrap (SE)")
+  tab$Method <- label_map[tab$Method]
 
-  print(ci, row.names = FALSE, right = FALSE)
+  print(tab, row.names = FALSE, right = FALSE)
   invisible(x)
 }
 
@@ -47,19 +72,19 @@ summary.cic <- function(object, digits = 4, ...) {
                 object$h))
 
   cat(rep("-", 44), "\n", sep = "")
-  cat("Confidence intervals:\n\n")
+  cat("Econometric output:\n\n")
 
-  ci <- object$ci
+  tab <- .cic_inference_table(object)
+  numeric_cols <- vapply(tab, is.numeric, logical(1))
+  tab[numeric_cols] <- lapply(tab[numeric_cols], round, digits = digits)
+
   label_map <- c(`no-split` = "No-split        ",
+                 split = "Split           ",
+                 kde   = "KDE             ",
                  bpc   = "Bootstrap (pct.)",
                  bse   = "Bootstrap (SE)  ")
-  for (i in seq_len(nrow(ci))) {
-    cat(sprintf("  %s  [%.*f, %.*f]  (length %.4f)\n",
-                label_map[ci$method[i]],
-                digits, ci$lower[i],
-                digits, ci$upper[i],
-                ci$length[i]))
-  }
+  tab$Method <- label_map[tab$Method]
+  print(tab, row.names = FALSE, right = FALSE)
   cat(rep("=", 44), "\n", sep = "")
   invisible(object)
 }

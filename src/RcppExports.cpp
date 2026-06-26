@@ -10,21 +10,19 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// boot_core
-NumericVector boot_core(NumericVector Ys, NumericVector Xs, NumericVector Zs, int B);
-RcppExport SEXP _cic_boot_core(SEXP YsSEXP, SEXP XsSEXP, SEXP ZsSEXP, SEXP BSEXP) {
+// f_y_hat_epnechikov
+NumericVector f_y_hat_epnechikov(NumericVector Y, NumericVector y, double h);
+RcppExport SEXP _cic_f_y_hat_epnechikov(SEXP YSEXP, SEXP ySEXP, SEXP hSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type Ys(YsSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type Xs(XsSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type Zs(ZsSEXP);
-    Rcpp::traits::input_parameter< int >::type B(BSEXP);
-    rcpp_result_gen = Rcpp::wrap(boot_core(Ys, Xs, Zs, B));
+    Rcpp::traits::input_parameter< NumericVector >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< double >::type h(hSEXP);
+    rcpp_result_gen = Rcpp::wrap(f_y_hat_epnechikov(Y, y, h));
     return rcpp_result_gen;
 END_RCPP
 }
-// f_y_hat_epanechnikov
 // rect_counts_rcpp
 IntegerVector rect_counts_rcpp(NumericVector X_sorted, NumericVector x_eval, NumericVector h_vals);
 RcppExport SEXP _cic_rect_counts_rcpp(SEXP X_sortedSEXP, SEXP x_evalSEXP, SEXP h_valsSEXP) {
@@ -51,11 +49,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// boot_core
+NumericVector boot_core(NumericVector Ys, NumericVector Xs, NumericVector Zs, int B);
+RcppExport SEXP _cic_boot_core(SEXP YsSEXP, SEXP XsSEXP, SEXP ZsSEXP, SEXP BSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type Ys(YsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Xs(XsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Zs(ZsSEXP);
+    Rcpp::traits::input_parameter< int >::type B(BSEXP);
+    rcpp_result_gen = Rcpp::wrap(boot_core(Ys, Xs, Zs, B));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_cic_boot_core", (DL_FUNC) &_cic_boot_core, 4},
+    {"_cic_f_y_hat_epnechikov", (DL_FUNC) &_cic_f_y_hat_epnechikov, 3},
     {"_cic_rect_counts_rcpp", (DL_FUNC) &_cic_rect_counts_rcpp, 3},
     {"_cic_counts_to_density", (DL_FUNC) &_cic_counts_to_density, 3},
+    {"_cic_boot_core", (DL_FUNC) &_cic_boot_core, 4},
     {NULL, NULL, 0}
 };
 

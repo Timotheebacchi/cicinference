@@ -8,7 +8,7 @@ cic(
   Y,
   X,
   Z,
-  method = c("no-split", "bse", "bpc"),
+  method = c("no-split", "split", "kde", "bse", "bpc"),
   B = 200,
   h = NULL,
   level = 0.95
@@ -30,7 +30,7 @@ cic(
 
 \item{B}{Integer: Number of bootstrap replications (default: 200). Only used for "bse" and "bpc".}
 
-\item{h}{Numeric: Bandwidth parameter for no-split method (default: NULL = auto)}
+\item{h}{Numeric: Bandwidth parameter for the nonparametric density estimators (default: NULL = auto)}
 
 \item{level}{Numeric: Confidence level for intervals (default: 0.95)}
 }
@@ -40,7 +40,7 @@ An S3 object of class 'cic' with elements:
 \item{ci}{Data frame with confidence intervals (columns: lower, upper, length, method)}
 \item{n}{Sample sizes (Y, X, Z)}
 \item{method}{Estimation method(s) used}
-\item{h}{Bandwidth used (for no-split)}
+\item{h}{Bandwidth used for the nonparametric density estimators}
 \item{level}{Confidence level}
 }
 \description{
