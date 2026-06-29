@@ -1,5 +1,6 @@
 Package: cic
-Title: Changes-in-Changes Estimator with Asymptotic Confidence Intervals
+Title: Changes-in-Changes Estimator with Asymptotic Confidence
+        Intervals
 Version: 0.1.0
 Authors@R: person("Timothée", "Bacchi", email = "timothee.bacchi@etu.minesparis.psl.eu", role = c("aut", "cre"))
 Author: Timothée Bacchi
@@ -17,13 +18,10 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
-Imports:
-    Rcpp (>= 1.0.0)
-Suggests:
-    testthat (>= 3.0.0),
-    knitr,
-    rmarkdown
-LinkingTo:
-    Rcpp
+Imports: Rcpp (>= 1.0.0)
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown
+LinkingTo: Rcpp
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+NeedsCompilation: yes
+Packaged: 2026-06-29 11:05:49 UTC; timbak

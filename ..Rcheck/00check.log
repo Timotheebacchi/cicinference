@@ -6,9 +6,110 @@
     GNU Fortran (GCC) 12.2.0
 * running under: macOS Monterey 12.7.4
 * using session charset: UTF-8
-* using options ‘--no-manual --as-cran’
-* checking for file ‘./DESCRIPTION’ ... ERROR
-Required field missing or empty:
-  ‘Author’
+* using option ‘--no-manual’
+* checking for file ‘./DESCRIPTION’ ... OK
+* this is package ‘cic’ version ‘0.1.0’
+* package encoding: UTF-8
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... WARNING
+Subdirectory ‘cic/src’ contains apparent object files/libraries
+  /Users/timbak/Desktop/PSE/R/scripts/cic_package/src/RcppExports.o
+  /Users/timbak/Desktop/PSE/R/scripts/cic_package/src/bootstrap.o
+  /Users/timbak/Desktop/PSE/R/scripts/cic_package/src/cic.so
+  /Users/timbak/Desktop/PSE/R/scripts/cic_package/src/density.o
+Object files/libraries should not be included in a source package.
+* checking if there is a namespace ... OK
+* checking for executable files ... WARNING
+Found the following executable file:
+  .git/objects/48/a9f1c32c108a279b48bbef3da408ff33a94eab
+Source packages should not contain undeclared executable files.
+See section ‘Package structure’ in the ‘Writing R Extensions’ manual.
+* checking for hidden files and directories ... NOTE
+Found the following hidden files and directories:
+  .DS_Store
+  .git/.COMMIT_EDITMSG.swp
+  .gitignore
+  R/.DS_Store
+  src/.DS_Store
+  tests/.DS_Store
+  tests/testthat/.DS_Store
+  vignettes/.gitignore
+  ..Rcheck
+  .git
+  .github
+These were most likely included in error. See section ‘Package
+structure’ in the ‘Writing R Extensions’ manual.
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘cic’ can be installed ... OK
+* used C++ compiler: ‘Apple clang version 14.0.0 (clang-1400.0.29.202)’
+* used SDK: ‘MacOSX13.1.sdk’
+* checking installed package size ... OK
+* checking package directory ... OK
+* checking DESCRIPTION meta-information ... NOTE
+Checking should be performed on sources prepared by ‘R CMD build’.
+* checking top-level files ... OK
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... WARNING
+Found the following directory with the name of a check directory:
+  ./..Rcheck
+Most likely, these were included erroneously.
+* checking R files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... NOTE
+plot.cic: no visible global function definition for ‘axis’
+plot.cic: no visible global function definition for ‘segments’
+plot.cic: no visible global function definition for ‘points’
+plot.cic: no visible global function definition for ‘abline’
+Undefined global functions or variables:
+  abline axis points segments
+Consider adding
+  importFrom("graphics", "abline", "axis", "points", "segments")
+to your NAMESPACE file.
+* checking Rd files ... OK
+* checking Rd metadata ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking line endings in C/C++/Fortran sources/headers ... NOTE
+Found the following sources/headers not terminated with a newline:
+  src/bootstrap.cpp
+Some compilers warn on such files.
+* checking compiled code ... WARNING
+File ‘cic/libs/cic.so’:
+  Found ‘_abort’, possibly from ‘abort’ (C)
+    Object: ‘RcppExports.o’
+
+Compiled code should not call entry points which might terminate R nor
+write to stdout/stderr instead of to the console, nor use Fortran I/O
+nor system RNGs nor [v]sprintf.
+
+See ‘Writing portable packages’ in the ‘Writing R Extensions’ manual.
+* checking files in ‘vignettes’ ... WARNING
+Files in the 'vignettes' directory but no files in 'inst/doc':
+  ‘introduction-cic.Rmd’
+* checking examples ... OK
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes in ‘inst/doc’ ... WARNING
+Directory 'inst/doc' does not exist.
+Package vignette without corresponding single PDF/HTML:
+  ‘introduction-cic.Rmd’
+* checking running R code from vignettes ... OK
+  ‘introduction-cic.Rmd’ using ‘UTF-8’... OK
+* checking re-building of vignette outputs ... OK
 * DONE
-Status: 1 ERROR
+Status: 6 WARNINGs, 4 NOTEs

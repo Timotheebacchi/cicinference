@@ -1,0 +1,14 @@
+citHeader("To cite cic in publications use:")
+
+bibentry(
+  bibtype = "Unpublished",
+  title = "Asymptotic Properties of Empirical Quantile-Based Estimators",
+  author = c(
+    person(given = "Julien", family = "Chhor"),
+    person(given = "Xavier", family = "D'Haultfœuille"),
+    person(given = "Jérémy", family = "L'Hour"),
+    person(given = "Martin", family = "Mugnier")
+  ),
+  year = "2026",
+  note = "Manuscript, not yet published."
+)

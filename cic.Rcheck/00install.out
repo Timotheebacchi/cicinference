@@ -1,0 +1,22 @@
+* installing *source* package ‘cic’ ...
+** using staged installation
+** libs
+using C++ compiler: ‘Apple clang version 14.0.0 (clang-1400.0.29.202)’
+using SDK: ‘MacOSX13.1.sdk’
+clang++ -arch x86_64 -std=gnu++17 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/library/Rcpp/include' -I/opt/R/x86_64/include    -fPIC  -falign-functions=64 -Wall -g -O2  -c RcppExports.cpp -o RcppExports.o
+clang++ -arch x86_64 -std=gnu++17 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/library/Rcpp/include' -I/opt/R/x86_64/include    -fPIC  -falign-functions=64 -Wall -g -O2  -c bootstrap.cpp -o bootstrap.o
+clang++ -arch x86_64 -std=gnu++17 -dynamiclib -Wl,-headerpad_max_install_names -undefined dynamic_lookup -L/Library/Frameworks/R.framework/Resources/lib -L/opt/R/x86_64/lib -o cic.so RcppExports.o bootstrap.o -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework -Wl,CoreFoundation
+ld: warning: -undefined dynamic_lookup may not work with chained fixups
+installing to /Users/timbak/Desktop/PSE/R/scripts/cic_package/cic.Rcheck/00LOCK-cic/00new/cic/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (cic)

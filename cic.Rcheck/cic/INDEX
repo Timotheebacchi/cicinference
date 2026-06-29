@@ -1,0 +1,6 @@
+check_cic_assumptions   Check CiC Model Assumptions
+cic                     Changes-in-Changes Estimator
+qY_dgp                  Quantile Function for Athey & Imbens (2006) DGP
+sim_dgp                 Simulate Data from Athey & Imbens (2006) DGP
+theta_true              True CiC Parameter for Athey & Imbens (2006)
+                        DGP
