@@ -49,29 +49,37 @@
 
   It is designed as a quick pre-check before running `cic()` on empirical data.
 
-  ## Methods
+  ## Rappel mathématique des méthodes
 
-  | Method | Description |
-  |---|---|
-  | `"no-split"` | Full-sample nonparametric variance estimator |
-  | `"split"` | Sample-splitting variance estimator |
-  | `"kde"` | Epanechnikov KDE-based variance estimator |
-  | `"bse"` | Bootstrap standard-error interval |
-  | `"bpc"` | Bootstrap percentile interval |
+  Soit $F_Z$ la fonction de répartition empirique de $Z$ et $Q_Y(u)=F_Y^{-1}(u)$ la quantile left-continuous de $Y$. Le point estimateur commun à toutes les méthodes est
 
-  You can supply one method or several methods at once; `cic()` returns the intervals in the order requested.
+  $$
+  \hat\theta = \frac{1}{n}\sum_{i=1}^n Q_Y(F_Z(X_i)).
+  $$
 
-  ## Asymptotic Confidence Intervals
+  L’intervalle de confiance est ensuite construit autour de $\hat\theta$ avec des estimateurs de variance ou par bootstrap. En notation compacte, les méthodes asymptotiques utilisent une forme du type
 
-  `cic()` provides several ways to build confidence intervals around the point estimate:
+  $$
+  \hat\theta \pm z_{1-\alpha}\,\widehat{\mathrm{se}},
+  $$
 
-  - `"no-split"`: full-sample asymptotic interval based on the plug-in variance estimator
-  - `"split"`: asymptotic interval built with sample splitting
-  - `"kde"`: asymptotic interval using an Epanechnikov kernel density estimate
-  - `"bse"`: bootstrap standard-error interval
-  - `"bpc"`: bootstrap percentile interval
+  où $\alpha = (1-\text{level})/2$ et $z_{1-\alpha}$ est le quantile normal. Le code sépare aussi les contributions de variance via
 
-  The first three methods are the main asymptotic alternatives; the bootstrap methods are useful robustness checks when you want to compare finite-sample behavior.
+  $$
+  \hat\sigma^2 = \lambda_{1,3}\,\hat\eta + \lambda_2\,\hat\varepsilon,
+  $$
+
+  avec $\hat\varepsilon = n^{-1}\sum_i (\hat\theta - Q_Y(F_Z(X_i)))^2$, $\lambda_{1,3} = N(n_1+n_3)/(n_1n_3)$, $\lambda_2 = N/n_2$ et $N = \min(n_1,n_2,n_3)$.
+
+  | Méthode | Ce qu’elle fait | Différence principale |
+  |---|---|---|
+  | "no-split" | Estime la partie non paramétrique de variance sur l’échantillon complet, avec un lissage piloté par `h`. | C’est la méthode asymptotique la plus directe et la plus efficace en termes d’utilisation des données. |
+  | "split" | Coupe les échantillons en deux moitiés, ré-estime les composantes de densité sur chaque moitié, puis forme l’intervalle avec une variance de sample splitting. | Elle réduit le biais de réutilisation des données, au prix d’une perte d’information et d’une variance souvent plus grande. |
+  | "kde" | Approxime la densité à l’aide d’un noyau d’Epanechnikov appliqué aux scores $Q_Y(F_Z(X_i))$. | Elle remplace l’estimation par comptage local par une estimation de densité au noyau, utile comme alternative lissée. |
+  | "bse" | Rééchantillonne les triplets $(Y,X,Z)$, calcule $\hat\theta^*$ à chaque réplication, puis prend l’écart-type bootstrap comme erreur-type. | L’intervalle est centré sur $\hat\theta$ et hérite de la dispersion empirique bootstrap. |
+  | "bpc" | Rééchantillonne comme "bse", mais utilise directement les quantiles empiriques de $\hat\theta^*$ pour construire l’intervalle. | L’intervalle n’est pas forcé d’être symétrique autour de $\hat\theta$ et suit mieux l’asymétrie finie-échantillon. |
+
+  En pratique, `cic()` peut recevoir une seule méthode ou plusieurs méthodes à la fois, et renvoie les intervalles dans l’ordre demandé. Pour lire rapidement les résultats: `no-split`, `split` et `kde` sont les trois variantes asymptotiques principales, tandis que `bse` et `bpc` servent surtout de contrepoints bootstrap pour comparer la robustesse en petit échantillon.
 
   ## Package Contents
 
