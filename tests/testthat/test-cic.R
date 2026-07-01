@@ -1,5 +1,5 @@
 library(testthat)
-library(cic)
+library(cic.newassumptions.newvarianceestimator)
 
 # ── DGP helpers ───────────────────────────────────────────────────────────────
 # Quantile function from the Monte Carlo section of the paper:

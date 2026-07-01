@@ -45,7 +45,7 @@
             "Density estimation failed due to unavailable compiled C++ code. ",
             "This function requires rect_counts_rcpp and counts_to_density from ",
             "the Rcpp binding. Please ensure the package is installed with ",
-            "compilation: install.packages('cic', type='source'). ",
+            "compilation: install.packages('cic.newassumptions.newvarianceestimator', type='source'). ",
             "Original error: ", conditionMessage(e)
           )
         })

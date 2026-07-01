@@ -1,4 +1,4 @@
-library(cic)
+library(cic.newassumptions.newvarianceestimator)
 
 set.seed(42)
 d <- sim_dgp(2000)

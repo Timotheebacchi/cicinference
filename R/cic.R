@@ -1,7 +1,7 @@
 #' @title Changes-in-Changes Estimator
 #' @description Computes the CiC estimator for nonlinear difference-in-differences models
 #' as described in the manuscript by Chhor, D'Haultfoeuille, L'Hour, and Mugnier.
-#' @useDynLib cic, .registration = TRUE
+#' @useDynLib cic.newassumptions.newvarianceestimator, .registration = TRUE
 #' @importFrom Rcpp evalCpp         
 #' @import stats
 #' @param Y Numeric vector: Outcome variable
@@ -163,7 +163,7 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
       stop(
         "Bootstrap computation failed. This may occur if the compiled C++ code ",
         "is unavailable or corrupted. Please ensure the package is properly ",
-        "installed and compiled: install.packages('cic', type='source'). ",
+        "installed and compiled: install.packages('cic.newassumptions.newvarianceestimator', type='source'). ",
         "Original error: ", conditionMessage(e)
       )
     })

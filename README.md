@@ -1,6 +1,6 @@
-  # cic: Changes-in-Changes Estimator
+  # cic.newassumptions.newvarianceestimator: Changes-in-Changes Estimator
 
-  `cic` is an R package for the Changes-in-Changes estimator and asymptotic inference for empirical quantile-based estimators. It computes the plug-in estimate, provides several confidence interval methods, and includes a diagnostic helper to check whether the input data look compatible with the model assumptions.
+  `cic.newassumptions.newvarianceestimator` is an R package for the Changes-in-Changes estimator and asymptotic inference for empirical quantile-based estimators. It computes the plug-in estimate, provides several confidence interval methods, and includes a diagnostic helper to check whether the input data look compatible with the model assumptions.
 
   ## Features
 
@@ -24,7 +24,7 @@
   ## Quick Start
 
   ```r
-  library(cic)
+  library(cic.newassumptions.newvarianceestimator)
 
   set.seed(42)
   d <- sim_dgp(2000)
