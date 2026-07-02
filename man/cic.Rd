@@ -64,5 +64,5 @@ Chhor, J., D'Haultfoeuille, X., L'Hour, J., & Mugnier, M. (2026).
 Asymptotic Properties of Empirical Quantile-Based Estimators. Manuscript.
 }
 \seealso{
-\code{\link{check_cic_assumptions}}, \code{\link{sim_dgp}}
+\code{\link{sim_dgp}}
 }

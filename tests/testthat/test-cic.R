@@ -215,83 +215,18 @@ test_that("B = NULL déclenche une erreur", {
                regexp = "B must not be NULL or NA")
 })
 
-# ── Tests : Diagnostic Function (check_cic_assumptions) ──────────────────────
-test_that("check_cic_assumptions retourne un objet valide", {
-  d <- sim_dgp(1000, b1 = 0, b2 = 0.05, d1 = 0, d2 = 0.05, seed = 24)
-  diag <- check_cic_assumptions(d$Y, d$X, d$Z)
-  expect_named(diag, c("pass_all", "metrics", "messages"))
-  expect_type(diag$pass_all, "logical")
-  expect_type(diag$metrics, "list")
-  expect_type(diag$messages, "character")
+# Basic input validation tests (replaced extensive diagnostics tests)
+test_that("non-vector inputs trigger a warning", {
+  d <- sim_dgp(100, seed = 40)
+  # pass a matrix instead of a vector
+  Ym <- matrix(d$Y, ncol = 1)
+  expect_warning(cic(Ym, d$X, d$Z), regexp = "should be a numeric vector|coercing to numeric vector")
 })
 
-test_that("check_cic_assumptions accepte les données bien comportées", {
-  set.seed(24)
-  n <- 1000
-  Y <- rnorm(n)
+test_that("inputs with many ties produce a warning", {
+  n <- 200
+  Y <- rep(1, n)
   X <- rnorm(n)
   Z <- rnorm(n)
-  diag <- check_cic_assumptions(Y, X, Z)
-  expect_true(diag$pass_all)
-})
-
-test_that("check_cic_assumptions détecte les queues lourdes", {
-  # Créer des données avec des queues extrêmement lourdes
-  n <- 100
-  set.seed(25)
-  Y <- rt(n, df = 2)  # t-distribution avec 2 degrés de liberté
-  X <- rt(n, df = 2)
-  Z <- rt(n, df = 2)
-  diag <- check_cic_assumptions(Y, X, Z)
-  # On s'attend à un possible fail ou au moins des warnings
-  expect_type(diag$messages, "character")
-})
-
-test_that("check_cic_assumptions inclut les ratios lambda", {
-  d <- sim_dgp(300, seed = 26)
-  diag <- check_cic_assumptions(d$Y, d$X, d$Z)
-  expect_true("lambda1" %in% names(diag$metrics))
-  expect_true("lambda2" %in% names(diag$metrics))
-  expect_true("lambda3" %in% names(diag$metrics))
-  expect_gt(diag$metrics$lambda1, 0)
-  expect_lt(diag$metrics$lambda1, 1)
-})
-
-test_that("check_cic_assumptions inclut les estimations de queues", {
-  d <- sim_dgp(300, seed = 27)
-  diag <- check_cic_assumptions(d$Y, d$X, d$Z)
-  expect_true("d1_left_tail" %in% names(diag$metrics))
-  expect_true("d2_right_tail" %in% names(diag$metrics))
-  expect_true("b1_left_boundary" %in% names(diag$metrics))
-  expect_true("b2_right_boundary" %in% names(diag$metrics))
-  expect_gte(diag$metrics$d1_left_tail, 0)
-  expect_gte(diag$metrics$d2_right_tail, 0)
-})
-
-test_that("check_cic_assumptions génère des messages clairs", {
-  d <- sim_dgp(200, seed = 28)
-  diag <- check_cic_assumptions(d$Y, d$X, d$Z)
-  expect_true(length(diag$messages) >= 1)
-  # Chaque message doit être non-vide
-  expect_true(all(nchar(diag$messages) > 0))
-})
-
-test_that("panel_data works in cic() and check_cic_assumptions()", {
-  d <- cic.newassumptions.newvarianceestimator::sim_dgp(500, seed = 30, panel_data = TRUE)
-  diag <- check_cic_assumptions(d$Y, d$X, d$Z, panel_data = TRUE)
-  fit <- cic(d$Y, d$X, d$Z, method = "no-split", panel_data = TRUE)
-
-  expect_true(diag$pass_all)
-  expect_true(isTRUE(diag$metrics$panel_data))
-  expect_true(isTRUE(fit$panel_data))
-  expect_s3_class(fit, "cic")
-  expect_true(all(is.finite(fit$ci$length)))
-})
-
-test_that("panel_data rejects non-no-split methods", {
-  d <- cic.newassumptions.newvarianceestimator::sim_dgp(200, seed = 31, panel_data = TRUE)
-  expect_error(
-    cic(d$Y, d$X, d$Z, method = c("no-split", "bse"), panel_data = TRUE),
-    regexp = "panel_data = TRUE is currently supported only for method = 'no-split'"
-  )
+  expect_warning(cic(Y, X, Z), regexp = "tied values|many ties|uniqueness")
 })

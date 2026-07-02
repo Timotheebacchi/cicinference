@@ -32,7 +32,7 @@
 #' d <- sim_dgp(500)
 #' fit <- cic(d$Y, d$X, d$Z, method = "no-split")
 #' summary(fit)
-#' @seealso \code{\link{check_cic_assumptions}}, \code{\link{sim_dgp}}
+#' @seealso \code{\link{sim_dgp}}
 #' @references Chhor, J., D'Haultfoeuille, X., L'Hour, J., & Mugnier, M. (2026).
 #'   Asymptotic Properties of Empirical Quantile-Based Estimators. Manuscript.
 #' @export
@@ -46,6 +46,28 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
     is.null(h) || (is.numeric(h) && length(h) == 1 && h > 0),
     is.numeric(level), level > 0, level < 1
   )
+  # Lightweight input warnings and coercions
+  if (!is.atomic(Y) || is.matrix(Y) || is.data.frame(Y)) {
+    warning("Y should be a numeric vector; coercing to a numeric vector.")
+    Y <- as.numeric(Y)
+  }
+  if (!is.atomic(X) || is.matrix(X) || is.data.frame(X)) {
+    warning("X should be a numeric vector; coercing to a numeric vector.")
+    X <- as.numeric(X)
+  }
+  if (!is.atomic(Z) || is.matrix(Z) || is.data.frame(Z)) {
+    warning("Z should be a numeric vector; coercing to a numeric vector.")
+    Z <- as.numeric(Z)
+  }
+
+  if (anyNA(Y) || anyNA(X) || anyNA(Z)) {
+    warning("Input contains NA or non-finite values; these will be dropped or may cause errors.")
+  }
+
+  uniqY <- length(unique(Y)) / max(1L, length(Y))
+  if (uniqY < 0.98) {
+    warning("Y contains many tied values; results may be unreliable (uniqueness < 0.98).")
+  }
   if (isTRUE(panel_data) && any(method != "no-split")) {
     stop("panel_data = TRUE is currently supported only for method = 'no-split'.")
   }

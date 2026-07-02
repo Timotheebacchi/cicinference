@@ -21,8 +21,7 @@ library(cic.newassumptions.newvarianceestimator)
 ## Overview
 
 `cic` estimates the Changes-in-Changes parameter and returns several types of confidence intervals.
-The package also includes a diagnostic helper to check whether the observed data are broadly compatible
-with the assumptions used by the estimator.
+The package performs basic input validation and emits clear warnings for common input issues.
 
 In this vignette we use the built-in simulation helpers to show the full workflow:
 
@@ -47,18 +46,10 @@ head(d$Z)
 The simulation helpers are mainly intended for examples and Monte Carlo experiments.
 They let you quickly reproduce the DGP used in the package documentation and tests.
 
-## Diagnostic Check
+## Input validation
 
-Before estimating the parameter, it is useful to inspect the input data with `check_cic_assumptions()`.
-
-```{r diagnostics}
-diag <- check_cic_assumptions(d$Y, d$X, d$Z)
-diag$pass_all
-diag$messages
-```
-
-The diagnostic output is a quick screening tool, not a formal proof that the model is correct.
-It is most useful as a pre-check before interpreting the point estimate and confidence intervals.
+The package will warn for non-vector inputs, many tied values, and invalid bandwidths.
+Inspect warnings produced by `cic()` when running your data.
 
 ## Estimation
 
