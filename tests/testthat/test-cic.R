@@ -237,3 +237,50 @@ test_that("inputs with many ties produce a warning", {
   Z <- rnorm(n)
   expect_warning(cic(Y, X, Z), regexp = "tied values|many ties|uniqueness")
 })
+
+Here is the complete test block translated into English, ready to be added to your testthat file to validate the new panel_data behavior.
+R
+
+# ── Tests: Panel Data (panel_data) ─────────────────────────────────────
+test_that("panel_data = TRUE works for 'no-split' and 'split'", {
+  d <- sim_dgp(200, seed = 101)
+  
+  # Test the 'no-split' method in panel mode
+  fit_panel_nosplit <- cic(d$Y, d$X, d$Z, method = "no-split", panel_data = TRUE)
+  expect_s3_class(fit_panel_nosplit, "cic")
+  expect_true(fit_panel_nosplit$panel_data)
+  expect_true(all(is.finite(fit_panel_nosplit$ci$length)))
+  
+  # Test the 'split' method in panel mode (new integration)
+  fit_panel_split <- cic(d$Y, d$X, d$Z, method = "split", panel_data = TRUE)
+  expect_s3_class(fit_panel_split, "cic")
+  expect_true(fit_panel_split$panel_data)
+  expect_true(all(is.finite(fit_panel_split$ci$length)))
+})
+
+test_that("panel_data = TRUE accepts simultaneous calls for 'no-split' and 'split'", {
+  d <- sim_dgp(200, seed = 102)
+  
+  # Verification of the logical bug fix: calling both methods simultaneously should pass smoothly
+  expect_silent(
+    fit_both <- cic(d$Y, d$X, d$Z, method = c("no-split", "split"), panel_data = TRUE)
+  )
+  expect_equal(nrow(fit_both$ci), 2)
+  expect_equal(fit_both$ci$method, c("no-split", "split"))
+})
+
+test_that("panel_data = TRUE throws an error with unsupported methods", {
+  d <- sim_dgp(200, seed = 103)
+  
+  # A single unsupported method
+  expect_error(
+    cic(d$Y, d$X, d$Z, method = "kde", panel_data = TRUE),
+    regexp = "panel_data = TRUE is currently supported only for method"
+  )
+  
+  # A mix containing an unsupported method
+  expect_error(
+    cic(d$Y, d$X, d$Z, method = c("no-split", "bse"), panel_data = TRUE),
+    regexp = "panel_data = TRUE is currently supported only for method"
+  )
+})

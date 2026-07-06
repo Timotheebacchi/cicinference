@@ -1,8 +1,8 @@
 ---
-title: "introduction-cic"
+title: "Inference for Empirical Quantile-Based Changes-in-Changes"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{introduction-cic}
+  %\VignetteIndexEntry{Inference for Empirical Quantile-Based Changes-in-Changes}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

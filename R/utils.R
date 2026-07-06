@@ -314,6 +314,80 @@
   )
 }
 
+# Returns a list with point estimate, asymptotic variance, and standard error.
+.panel_estimator <- function(Y, X, Z, h) {
+  n1 <- length(Y)
+  n2 <- length(X)
+
+  if (n1 != length(Z)) {
+    stop("panel_data = TRUE requires length(Y) to equal length(Z).")
+  }
+
+  # Split n1 into 4 parts and n2 into 2 parts as defined in the LaTeX theorem
+  q <- floor(n1 / 4)
+  r <- floor(n2 / 2)
+  if (q < 2 || r < 2) {
+    stop("panel_data = TRUE requires at least 8 paired observations and 4 X observations.")
+  }
+
+  # 4 distinct splits for (Y, Z) pairs
+  z_1 <- seq_len(q)
+  z_2 <- seq.int(q + 1L, 2L * q)
+  y_1 <- seq.int(2L * q + 1L, 3L * q)
+  y_2 <- seq.int(3L * q + 1L, 4L * q)
+  
+  # 2 distinct splits for X
+  x_1 <- seq_len(r)
+  x_2 <- seq.int(r + 1L, 2L * r)
+
+  # Step 1: Compute empirical CDFs and left-quantiles
+  FZ1 <- stats::ecdf(Z[z_1])
+  FZ2 <- stats::ecdf(Z[z_2])
+  FY1_q <- .prepare_left_quantile(Y[y_1])
+  FY2_q <- .prepare_left_quantile(Y[y_2])
+
+  # Step 2: Point estimation (\tilde{\theta} calculation)
+  theta_1 <- mean(FY1_q(FZ2(X[x_1])))
+  theta_2 <- mean(FY2_q(FZ1(X[x_2])))
+  theta_hat <- mean(c(theta_1, theta_2))
+
+  # Step 3: Ranks and density estimation (\check{f}_U^{(1)} and \check{f}_U^{(2)})
+  U_1 <- FZ1(X[x_1])
+  U_2 <- FZ2(X[x_2])
+  FYhat <- seq_len(q - 1L) / q
+
+  est_1 <- .make_density_estimator(sort(U_1), FYhat)
+  est_2 <- .make_density_estimator(sort(U_2), FYhat)
+  fU_1 <- est_1$estimate(h, pointwise = 1)
+  fU_2 <- est_2$estimate(h, pointwise = 1)
+
+  # Step 4: Double integral via the fast eta routine (\hat{E}[\eta^2])
+  eta_panel <- .fast_eta(diff(sort(Y[y_1])), fU_1, diff(sort(Y[y_2])), fU_2, FYhat)
+
+  # Step 5: Compute residuals (\check{\eps}_i^{(j)}) over all X observations
+  eps_1 <- theta_hat - FY1_q(FZ2(X))
+  eps_2 <- theta_hat - FY2_q(FZ1(X))
+  eps_panel <- mean((eps_1^2 + eps_2^2) / 2)
+
+  # Step 6: Asymptotic variance scaling matching the \widehat{\widetilde{\sigma}}^2 formula
+  # We use N = min(n1, n2) as the standard package reference sample size.
+  N <- min(n1, n2)
+  
+  # First term:  (2 * N / n1) * Integral
+  # Second term: (N / n2^2) * sum(eps^2 / 2) = (N / n2) * mean(eps^2 / 2)
+  sigma_sq <- (2 * N / n1) * eta_panel + (N / n2) * eps_panel
+
+  list(
+    theta_hat = theta_hat,
+    sigma_sq = sigma_sq,
+    se = sqrt(max(sigma_sq, 0) / N),
+    q = q,
+    r = r
+  )
+}
+
+
+
 .screen_density_envelope <- function(U, b1, b2, h = NULL) {
   U <- na.omit(as.numeric(U))
   n <- length(U)

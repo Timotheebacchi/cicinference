@@ -47,6 +47,7 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
     is.null(h) || (is.numeric(h) && length(h) == 1 && h > 0),
     is.numeric(level), level > 0, level < 1
   )
+
   # Lightweight input warnings and coercions
   if (!is.atomic(Y) || is.matrix(Y) || is.data.frame(Y)) {
     warning("Y should be a numeric vector; coercing to a numeric vector.")
@@ -69,18 +70,19 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
   if (uniqY < 0.98) {
     warning("Y contains many tied values; results may be unreliable (uniqueness < 0.98).")
   }
-  if (isTRUE(panel_data) && any(method != "no-split")) {
-    stop("panel_data = TRUE is currently supported only for method = 'no-split'.")
+
+  # Fixed logical check for panel methods compatibility
+  if (isTRUE(panel_data) && !all(method %in% c("no-split", "split"))) {
+    stop("panel_data = TRUE is currently supported only for method = 'no-split' or 'split'. Please set method accordingly.")
   }
+
   if (any(c("bse", "bpc") %in% method)) {
-    # Sanitize B: check for NA and NULL before conversion
-    if (is.null(B) || (is.na(B))) {
+    if (is.null(B) || is.na(B)) {
       stop("B must not be NULL or NA.")
     }
     B <- as.integer(B)
     if (B < 200L) {
-      warning("B < 200: the bootstrap standard error may be unstable. ",
-              "Using B = 200.")
+      warning("B < 200: the bootstrap standard error may be unstable. Using B = 200.")
       B <- 200L
     }
   }
@@ -89,15 +91,11 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
   timing_start <- proc.time()[["elapsed"]]
   timing_last <- timing_start
   log_timing <- function(stage) {
-    if (!timings) {
-      return(invisible(NULL))
-    }
+    if (!timings) return(invisible(NULL))
     timing_now <- proc.time()[["elapsed"]]
     message(sprintf(
       "cic timing [%s]: %.3f s (stage), %.3f s (total)",
-      stage,
-      timing_now - timing_last,
-      timing_now - timing_start
+      stage, timing_now - timing_last, timing_now - timing_start
     ))
     timing_last <<- timing_now
     invisible(NULL)
@@ -107,46 +105,41 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
   alpha <- (1 - level) / 2
   z_a   <- stats::qnorm(1 - alpha)
 
-  # ── Point estimate ────────────────────────────────────────────────────────────
-  FZ             <- stats::ecdf(Z)
-  Uhat           <- FZ(X)
-  qcdf_transform <- .prepare_left_quantile(Y)(Uhat)
-  theta_hat      <- mean(qcdf_transform)
-  eps_hat        <- mean((theta_hat - qcdf_transform)^2)
-
-  if (isTRUE(panel_data)) {
-    panel_fit <- .panel_no_split_estimator(Y, X, Z, h = if (is.null(h)) .default_bandwidth(length(X)) else h)
-    theta_hat <- panel_fit$theta_hat
-    eps_hat <- mean((panel_fit$theta_hat - qcdf_transform)^2)
-    log_timing("panel no-split estimator")
-  }
-
-  # ── Bandwidth ─────────────────────────────────────────────────────────────────
+  # ── Bandwidth initialization ──────────────────────────────────────────────────
   if (is.null(h)) h <- .default_bandwidth(n2)
 
-  # ── Variance estimation ───────────────────────────────────────────────────────
-  ci_rows <- list()
-  N        <- min(n1, n2, n3)
-  lbda1_3  <- N * (n1 + n3) / (n1 * n3)
-  lbda2    <- N / n2
+  # ── Baseline setup (Conditional lazy execution) ───────────────────────────────
+  ci_rows   <- list()
+  theta_hat <- NULL 
+  N         <- min(n1, n2, n3)
+  lbda1_3   <- N * (n1 + n3) / (n1 * n3)
+  lbda2     <- N / n2
 
+  # We only compute cross-sectional matrices if we are NOT in panel data mode
+  if (!isTRUE(panel_data)) {
+    FZ             <- stats::ecdf(Z)
+    Uhat           <- FZ(X)
+    qcdf_transform <- .prepare_left_quantile(Y)(Uhat)
+    theta_hat      <- mean(qcdf_transform)
+    eps_hat        <- mean((theta_hat - qcdf_transform)^2)
+  }
+
+  # ── Variance & Estimation methods ────────────────────────────────────────────
+  
   if ("no-split" %in% method) {
     if (isTRUE(panel_data)) {
-      sigma_sq <- panel_fit$sigma_sq
-      se <- panel_fit$se
+      panel_fit <- .panel_no_split_estimator(Y, X, Z, h)
+      theta_hat <- panel_fit$theta_hat
+      se        <- panel_fit$se
+      log_timing("panel no-split estimator")
     } else {
-      # No-split: use the full sample and a single bandwidth multiplier in the
-      # local density estimator.
-      Ysortdiff <- diff(sort(Y))
-      FYhat     <- seq_len(n1 - 1) / n1
-      
-      est_full   <- .make_density_estimator(sort(Uhat), FYhat)
-      fUhat      <- est_full$estimate(h, pointwise = 1)
-
+      Ysortdiff   <- diff(sort(Y))
+      FYhat       <- seq_len(n1 - 1) / n1
+      est_full    <- .make_density_estimator(sort(Uhat), FYhat)
+      fUhat       <- est_full$estimate(h, pointwise = 1)
       eta_nosplit <- .fast_eta(Ysortdiff, fUhat, Ysortdiff, fUhat, FYhat)
       sigma_sq    <- lbda1_3 * eta_nosplit + lbda2 * eps_hat
       se          <- sqrt(sigma_sq / N)
-
       rm(Ysortdiff, FYhat, fUhat, est_full)
     }
 
@@ -160,28 +153,35 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
   }
 
   if ("split" %in% method) {
-    n_half <- min(floor(n1 / 2), floor(n2 / 2), floor(n3 / 2))
-    if (n_half < 2) {
-      stop("split method requires at least two observations in the first half-sample.")
+    if (isTRUE(panel_data)) {
+      panel_split_fit <- .panel_estimator(Y, X, Z, h)
+      theta_hat       <- panel_split_fit$theta_hat
+      se_split        <- panel_split_fit$se
+      log_timing("panel split estimator")
+    } else {
+      n_half <- min(floor(n1 / 2), floor(n2 / 2), floor(n3 / 2))
+      if (n_half < 2) {
+        stop("split method requires at least two observations in the first half-sample.")
+      }
+
+      FZ1   <- stats::ecdf(Z[seq_len(n_half)])
+      FZ2   <- stats::ecdf(Z[seq.int(n3 - n_half + 1L, n3)])
+      Uhat1 <- FZ1(X[seq_len(n_half)])
+      Uhat2 <- FZ2(X[seq.int(n2 - n_half + 1L, n2)])
+
+      Ysort1diff  <- diff(sort(Y[seq_len(n_half)]))
+      Ysort2diff  <- diff(sort(Y[seq.int(n1 - n_half + 1L, n1)]))
+      FYhat_split <- seq_len(n_half - 1L) / n_half
+
+      est1   <- .make_density_estimator(sort(Uhat1), FYhat_split)
+      est2   <- .make_density_estimator(sort(Uhat2), FYhat_split)
+      fUhat1 <- est1$estimate(h, pointwise = 1)
+      fUhat2 <- est2$estimate(h, pointwise = 1)
+
+      eta_hat_split  <- .fast_eta(Ysort1diff, fUhat1, Ysort2diff, fUhat2, FYhat_split)
+      sigma_sq_split <- lbda1_3 * eta_hat_split + lbda2 * eps_hat
+      se_split       <- sqrt(max(sigma_sq_split, 0) / N)
     }
-
-    FZ1   <- stats::ecdf(Z[seq_len(n_half)])
-    FZ2   <- stats::ecdf(Z[seq.int(n3 - n_half + 1L, n3)])
-    Uhat1 <- FZ1(X[seq_len(n_half)])
-    Uhat2 <- FZ2(X[seq.int(n2 - n_half + 1L, n2)])
-
-    Ysort1diff  <- diff(sort(Y[seq_len(n_half)]))
-    Ysort2diff  <- diff(sort(Y[seq.int(n1 - n_half + 1L, n1)]))
-    FYhat_split <- seq_len(n_half - 1L) / n_half
-
-    est1   <- .make_density_estimator(sort(Uhat1), FYhat_split)
-    est2   <- .make_density_estimator(sort(Uhat2), FYhat_split)
-    fUhat1 <- est1$estimate(h, pointwise = 1)
-    fUhat2 <- est2$estimate(h, pointwise = 1)
-
-    eta_hat_split <- .fast_eta(Ysort1diff, fUhat1, Ysort2diff, fUhat2, FYhat_split)
-    sigma_sq_split <- lbda1_3 * eta_hat_split + lbda2 * eps_hat
-    se_split <- sqrt(max(sigma_sq_split, 0) / N)
 
     ci_rows[["split"]] <- data.frame(
       method = "split",
@@ -193,7 +193,7 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
   }
 
   if ("kde" %in% method) {
-    n_kde <- length(Uhat)
+    n_kde    <- length(Uhat)
     idx_sort <- order(Uhat)
     U_sort   <- Uhat[idx_sort]
     grid     <- seq_len(n_kde) / n_kde
@@ -201,11 +201,10 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
     ok       <- k <= n_kde
 
     f_one  <- f_y_hat_epnechikov(Y, qcdf_transform, h)
-
-    eta_ai    <- .compute_eta_from_f(f_one,  Uhat, idx_sort, k, ok, n_kde)
+    eta_ai <- .compute_eta_from_f(f_one, Uhat, idx_sort, k, ok, n_kde)
 
     sigma_sq_kde <- 2 * eta_ai + eps_hat
-    se_kde <- sqrt(max(sigma_sq_kde, 0) / N)
+    se_kde       <- sqrt(max(sigma_sq_kde, 0) / N)
 
     ci_rows[["kde"]] <- data.frame(
       method = "kde",
@@ -217,15 +216,11 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
   }
 
   if (any(c("bse", "bpc") %in% method)) {
-    # Use internal R implementation of bootstrap core
-    # (fallback to pure R if Rcpp version unavailable)
     tryCatch({
-      boot_vals <-  boot_core(sort(Y), X, sort(Z), B = B)
+      boot_vals <- boot_core(sort(Y), X, sort(Z), B = B)
     }, error = function(e) {
       stop(
-        "Bootstrap computation failed. This may occur if the compiled C++ code ",
-        "is unavailable or corrupted. Please ensure the package is properly ",
-        "installed and compiled: install.packages('cic.newassumptions.newvarianceestimator', type='source'). ",
+        "Bootstrap computation failed. This may occur if the compiled C++ code is unavailable. ",
         "Original error: ", conditionMessage(e)
       )
     })
@@ -253,19 +248,19 @@ cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B
     log_timing("bootstrap")
   }
 
-  ci <- do.call(rbind, ci_rows[method])  # preserve requested order
+  ci <- do.call(rbind, ci_rows[method])
   rownames(ci) <- NULL
 
   # ── Output ───────────────────────────────────────────────────────────────────
   structure(
     list(
-      theta_hat = theta_hat,
-      ci        = ci,
-      level     = level,
-      n         = c(n1 = n1, n2 = n2, n3 = n3),
-      method    = method,
+      theta_hat  = theta_hat,
+      ci         = ci,
+      level      = level,
+      n          = c(n1 = n1, n2 = n2, n3 = n3),
+      method     = method,
       panel_data = isTRUE(panel_data),
-      h         = if (any(c("no-split", "kde") %in% method)) h else NA_real_
+      h          = if (any(c("no-split", "kde") %in% method)) h else NA_real_
     ),
     class = "cic"
   )
