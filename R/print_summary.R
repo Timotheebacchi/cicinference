@@ -28,7 +28,7 @@
 # ── summary.cic ────────────────────────────────────────────────────────────────
 
 #' @export
-summary.cic <- function(object, digits = 4, ...) {
+summary.cic_inference <- function(object, digits = 4, ...) {
   cat("Changes-in-Changes - Summary\n")
   cat(rep("=", 44), "\n", sep = "")
   
@@ -41,7 +41,7 @@ summary.cic <- function(object, digits = 4, ...) {
   cat(sprintf("\nConfidence level : %.0f%%\n", object$level * 100))
 
   if (!is.na(object$epsilon_n))
-    cat(sprintf("Bandwidth (h)    : %.4f  [1/log(n2) plug-in default]\n",
+    cat(sprintf("Bandwidth (epsilon_n)    : %.4f  [1/log(n2) plug-in default]\n",
                 object$epsilon_n))
   else
     cat("Bandwidth (epsilon_n)    : NA  [not applicable for bootstrap methods]\n")
@@ -66,12 +66,12 @@ summary.cic <- function(object, digits = 4, ...) {
 }
 
 #' @export
-coef.cic <- function(object, ...) {
+coef.cic_inference <- function(object, ...) {
   object$theta_hat
 }
 
 #' @export
-confint.cic <- function(object, parm = NULL, level = object$level, ...) {
+confint.cic_inference <- function(object, parm = NULL, level = object$level, ...) {
   if (!is.null(level) && !identical(level, object$level)) {
     warning(
       "`level` differs from the confidence level used to fit the object. ",

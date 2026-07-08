@@ -1,5 +1,5 @@
-Package: cic.newassumptions.newvarianceestimator
-Title: cic.newassumptions.newvarianceestimator: Changes-in-Changes Estimator with Asymptotic Confidence Intervals
+Package: cicinference
+Title: Library of variance estimators in Changes-in-Changes (CiC) design
 Version: 0.1.0
 Author: Timothée Bacchi [aut, cre]
 Authors@R: person("Timothée", "Bacchi", email = "timothee.bacchi@etu.minesparis.psl.eu", role = c("aut", "cre"))

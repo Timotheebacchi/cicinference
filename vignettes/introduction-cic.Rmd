@@ -15,12 +15,12 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(cic.newassumptions.newvarianceestimator)
+library(cicinference)
 ```
 
 ## Overview
 
-`cic` estimates the Changes-in-Changes parameter and returns several types of confidence intervals.
+`cic_inference` estimates the Changes-in-Changes parameter and returns several types of confidence intervals.
 The package performs basic input validation and emits clear warnings for common input issues.
 
 In this vignette we use the built-in simulation helpers to show the full workflow:
@@ -49,21 +49,19 @@ They let you quickly reproduce the DGP used in the package documentation and tes
 ## Input validation
 
 The package will warn for non-vector inputs, many tied values, and invalid bandwidths.
-Inspect warnings produced by `cic()` when running your data.
+Inspect warnings produced by `cic_inference()` when running your data.
 
 ## Estimation
 
 The `method` argument accepts one or several interval constructors.
 
 ```{r estimation}
-fit <- cic(
+fit <- cic_inference(
   d$Y, d$X, d$Z,
   method = c("no-split", "split", "kde", "bse", "bpc"),
   B = 1000,
   timings = TRUE
 )
-
-fit
 fit$theta_hat
 fit$ci
 ```

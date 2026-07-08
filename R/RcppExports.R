@@ -2,18 +2,18 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 f_y_hat_epnechikov <- function(Y, y, h_vals) {
-    .Call(`_cic_newassumptions_newvarianceestimator_f_y_hat_epnechikov`, Y, y, h_vals)
+    .Call(`_cicinference_f_y_hat_epnechikov`, Y, y, h_vals)
 }
 
 rect_counts_rcpp <- function(X_sorted, x_eval, h_vals) {
-    .Call(`_cic_newassumptions_newvarianceestimator_rect_counts_rcpp`, X_sorted, x_eval, h_vals)
+    .Call(`_cicinference_rect_counts_rcpp`, X_sorted, x_eval, h_vals)
 }
 
 counts_to_density <- function(counts, h_vals, n) {
-    .Call(`_cic_newassumptions_newvarianceestimator_counts_to_density`, counts, h_vals, n)
+    .Call(`_cicinference_counts_to_density`, counts, h_vals, n)
 }
 
 boot_core <- function(Ys, Xs, Zs, B) {
-    .Call(`_cic_newassumptions_newvarianceestimator_boot_core`, Ys, Xs, Zs, B)
+    .Call(`_cicinference_boot_core`, Ys, Xs, Zs, B)
 }
 

@@ -1,4 +1,4 @@
-citHeader("To cite cic.newassumptions.newvarianceestimator in publications use:")
+citHeader("To cite cicinference in publications use:")
 
 bibentry(
   bibtype = "Unpublished",
@@ -10,5 +10,5 @@ bibentry(
     person(given = "Martin", family = "Mugnier")
   ),
   year = "2026",
-  note = "Manuscript, not yet published."
+  note = "https://arxiv.org/abs/2607.00219"
 )

@@ -12,7 +12,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // f_y_hat_epnechikov
 NumericVector f_y_hat_epnechikov(NumericVector Y, NumericVector y, NumericVector h_vals);
-RcppExport SEXP _cic_newassumptions_newvarianceestimator_f_y_hat_epnechikov(SEXP YSEXP, SEXP ySEXP, SEXP h_valsSEXP) {
+RcppExport SEXP _cicinference_f_y_hat_epnechikov(SEXP YSEXP, SEXP ySEXP, SEXP h_valsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -25,7 +25,7 @@ END_RCPP
 }
 // rect_counts_rcpp
 IntegerVector rect_counts_rcpp(NumericVector X_sorted, NumericVector x_eval, NumericVector h_vals);
-RcppExport SEXP _cic_newassumptions_newvarianceestimator_rect_counts_rcpp(SEXP X_sortedSEXP, SEXP x_evalSEXP, SEXP h_valsSEXP) {
+RcppExport SEXP _cicinference_rect_counts_rcpp(SEXP X_sortedSEXP, SEXP x_evalSEXP, SEXP h_valsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -38,7 +38,7 @@ END_RCPP
 }
 // counts_to_density
 NumericVector counts_to_density(IntegerVector counts, NumericVector h_vals, int n);
-RcppExport SEXP _cic_newassumptions_newvarianceestimator_counts_to_density(SEXP countsSEXP, SEXP h_valsSEXP, SEXP nSEXP) {
+RcppExport SEXP _cicinference_counts_to_density(SEXP countsSEXP, SEXP h_valsSEXP, SEXP nSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -51,7 +51,7 @@ END_RCPP
 }
 // boot_core
 NumericVector boot_core(NumericVector Ys, NumericVector Xs, NumericVector Zs, int B);
-RcppExport SEXP _cic_newassumptions_newvarianceestimator_boot_core(SEXP YsSEXP, SEXP XsSEXP, SEXP ZsSEXP, SEXP BSEXP) {
+RcppExport SEXP _cicinference_boot_core(SEXP YsSEXP, SEXP XsSEXP, SEXP ZsSEXP, SEXP BSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -65,14 +65,14 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_cic_newassumptions_newvarianceestimator_f_y_hat_epnechikov", (DL_FUNC) &_cic_newassumptions_newvarianceestimator_f_y_hat_epnechikov, 3},
-    {"_cic_newassumptions_newvarianceestimator_rect_counts_rcpp", (DL_FUNC) &_cic_newassumptions_newvarianceestimator_rect_counts_rcpp, 3},
-    {"_cic_newassumptions_newvarianceestimator_counts_to_density", (DL_FUNC) &_cic_newassumptions_newvarianceestimator_counts_to_density, 3},
-    {"_cic_newassumptions_newvarianceestimator_boot_core", (DL_FUNC) &_cic_newassumptions_newvarianceestimator_boot_core, 4},
+    {"_cicinference_f_y_hat_epnechikov", (DL_FUNC) &_cicinference_f_y_hat_epnechikov, 3},
+    {"_cicinference_rect_counts_rcpp", (DL_FUNC) &_cicinference_rect_counts_rcpp, 3},
+    {"_cicinference_counts_to_density", (DL_FUNC) &_cicinference_counts_to_density, 3},
+    {"_cicinference_boot_core", (DL_FUNC) &_cicinference_boot_core, 4},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_cic_newassumptions_newvarianceestimator(DllInfo *dll) {
+RcppExport void R_init_cicinference(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

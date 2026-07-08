@@ -1,5 +1,5 @@
 # ── Internal utilities ─────────────────────────────────────────────────────────
-# These functions are not exported. They are called by cic() internally.
+# These functions are not exported. They are called by cic_inference() internally.
 
 # Left-continuous quantile function (i.e. F_Y^{-1}(p) = Y_{(ceil(pn))})
 # with the convention F_Y^{-1}(0) = Y_{(1)}.
@@ -45,7 +45,7 @@
             "Density estimation failed due to unavailable compiled C++ code. ",
             "This function requires rect_counts_rcpp and counts_to_density from ",
             "the Rcpp binding. Please ensure the package is installed with ",
-            "compilation: install.packages('cic.newassumptions.newvarianceestimator', type='source'). ",
+            "compilation: install.packages('cicinference', type='source'). ",
             "Original error: ", conditionMessage(e)
           )
         })
@@ -71,7 +71,7 @@
 
 # Computes the fast eta variance term without building an n x n matrix.
 # This routine replaced the earlier matrix-based formulation and is the
-# active implementation used by cic().
+# active implementation used by cic_inference().
 #
 # Arguments:
 #   Ydiff1, Ydiff2 : diff(sort(Y)) on each half-sample (or full sample)

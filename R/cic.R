@@ -1,7 +1,7 @@
-#' @title Changes-in-Changes Estimator
+#' @title Changes-in-Changes inference Estimator
 #' @description Computes the CiC estimator for nonlinear difference-in-differences models
 #' as described in the manuscript by Chhor, D'Haultfoeuille, L'Hour, and Mugnier.
-#' @useDynLib cic.newassumptions.newvarianceestimator, .registration = TRUE
+#' @useDynLib cicinference, .registration = TRUE
 #' @importFrom Rcpp evalCpp         
 #' @import stats
 #' @param Y Numeric vector: Outcome variable
@@ -20,7 +20,7 @@
 #' @param level Numeric: Confidence level for intervals (default: 0.95)
 #' @param panel_data Logical: if TRUE, use the panel-data estimator based on a paired (Y, Z) sample.
 #' @param timings Logical: if TRUE, print elapsed time after each major computation block.
-#' @return An S3 object of class 'cic' with elements:
+#' @return An S3 object of class 'cic_inference' with elements:
 #'   \item{theta_hat}{Estimated CiC parameter}
 #'   \item{ci}{Data frame with confidence intervals (columns: lower, upper, length, method)}
 #'   \item{n}{Sample sizes (Y, X, Z)}
@@ -31,13 +31,13 @@
 #' @examples
 #' set.seed(42)
 #' d <- sim_dgp(500)
-#' fit <- cic(d$Y, d$X, d$Z, method = "no-split")
+#' fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split")
 #' summary(fit)
 #' @seealso \code{\link{sim_dgp}}
 #' @references Chhor, J., D'Haultfoeuille, X., L'Hour, J., & Mugnier, M. (2026).
 #'   Asymptotic Properties of Empirical Quantile-Based Estimators. Manuscript.
 #' @export
-cic <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B = 1000, epsilon_n = NULL, level = 0.95, panel_data = FALSE, timings = FALSE) {
+cic_inference <- function(Y, X, Z, method = c("no-split", "split", "kde", "bse", "bpc"), B = 1000, epsilon_n = NULL, level = 0.95, panel_data = FALSE, timings = FALSE) {
 
   # ── Input checks ─────────────────────────────────────────────────────────────
   method <- match.arg(method, several.ok = TRUE)
@@ -281,6 +281,6 @@ stopifnot(
       panel_data = isTRUE(panel_data),
       epsilon_n  = if (any(c("no-split", "kde") %in% method)) epsilon_n else NA_real_
     ),
-    class = "cic"
+    class = "cic_inference"
   )
 }
