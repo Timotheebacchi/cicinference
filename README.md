@@ -108,7 +108,7 @@ The `cic()` function returns a structured S3 object of class `"cic"`. Under the 
   
   ## Indication to use the package
 
-  - The methods bse and bpc are to be used on relatively small samples
+  - The methods bse and bpc are betterto be used on relatively small samples to be computed fast. It is expected to wait for more than a minute if you wish to use these methods for samples of more than 10^5 elements.
   - Split,no-split and kde methods are completely usable with gigantic samples. If it runs for more than a minute, even for n = O(10^6) there must be a problem
   - The default bandwith for kde is h = 1/log(n2) as adviced in the manuscript but it is possible to change it. However take care to have a bandwidth which respects assumptions of the paper (assumptions 3)
   
