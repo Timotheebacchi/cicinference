@@ -1,5 +1,0 @@
-check_cic_assumptions   Check CiC Model Assumptions
-cic                     Changes-in-Changes Estimator
-qY_dgp                  Quantile Function for the CiC Simulation DGP
-sim_dgp                 Simulate Data from the CiC Simulation DGP
-theta_true              True CiC Parameter for the Simulation DGP
