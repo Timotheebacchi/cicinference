@@ -20,18 +20,15 @@ library(cicinference)
 
 ## Overview
 
-`cic_inference` estimates the Changes-in-Changes parameter and returns several types of confidence intervals.
-The package performs basic input validation and emits clear warnings for common input issues.
+The `cicinference` package implements the estimation and inference framework developed by **Chhor, d'Haultfœuille, L'Hour, and Mugnier (2026)** in *"Asymptotic Properties of Empirical Quantile-Based Estimators"*. 
 
-In this vignette we use the built-in simulation helpers to show the full workflow:
+This framework generalizes the classic Changes-in-Changes (CiC) model to much weaker and more realistic conditions. Notably, it allows for unbounded outcome variables (e.g., wages, profits) and strictly weaker smoothness assumptions.
 
-1. generate data,
-2. run the diagnostic check,
-3. estimate the CiC parameter with several interval methods,
-4. inspect the output,
-5. visualize the confidence intervals.
+The package estimates the parameter $\theta_0 = E[F_Y^{-1}(F_Z(X))]$ and provides several types of robust asymptotic and bootstrap-based confidence intervals.
 
 ## Simulate Data
+
+We can use the built-in simulation helper `sim_dgp` to generate cross-sectional data:
 
 ```{r simulate-data}
 set.seed(42)
@@ -43,15 +40,12 @@ head(d$X)
 head(d$Z)
 ```
 
-The simulation helpers are mainly intended for examples and Monte Carlo experiments.
-They let you quickly reproduce the DGP used in the package documentation and tests.
-
 ## Input validation
 
 The package will warn for non-vector inputs, many tied values, and invalid bandwidths.
 Inspect warnings produced by `cic_inference()` when running your data.
 
-## Estimation
+## Estimation (Cross-Sectional Data)
 
 The `method` argument accepts one or several interval constructors.
 
@@ -66,23 +60,42 @@ fit$theta_hat
 fit$ci
 ```
 
-If you only want to profile the runtime, set `timings = TRUE` and the function
-will print elapsed time after each major computation block.
-
 The first three methods are asymptotic constructions:
 
 - `no-split`: full-sample plug-in variance estimator
 - `split`: sample-splitting variance estimator
 - `kde`: kernel-density-based variance estimator
 
-The bootstrap methods are included for robustness checks and finite-sample comparisons:
+The bootstrap methods (`bse` and `bpc`) are included for robustness checks.
 
-- `bse`: bootstrap standard-error interval
-- `bpc`: bootstrap percentile interval
+## Panel Data Estimation
+
+When working with panel data, the pre-treatment and post-treatment variables for the control group ($Z$ and $Y$) are paired (measured on the same individuals over two periods). Therefore, they must have the exact same length (`length(Y) == length(Z)`).
+
+To trigger the panel-specific splitting and plug-in estimators derived by Chhor et al. (2026), set `panel_data = TRUE`:
+
+```{r estimation-panel}
+# Simulating a panel structure where Y and Z have matching lengths
+n_panel <- 400
+Y_panel <- rnorm(n_panel)
+Z_panel <- Y_panel + rnorm(n_panel, sd = 0.5) # Paired baseline
+X_panel <- rnorm(300)
+
+fit_panel <- cic_inference(
+  Y = Y_panel, 
+  X = X_panel, 
+  Z = Z_panel,
+  method = c("no-split", "split"),
+  panel_data = TRUE,
+  timings = TRUE
+)
+fit_panel$theta_hat
+fit_panel$ci
+```
 
 ## Compare Methods
 
-When you request several methods at once, the results are returned in the order you asked for.
+When you request several methods at once, the results are returned in a summary table.
 
 ```{r compare-methods}
 fit$ci[, c("method", "lower", "upper", "length")]
@@ -98,19 +111,17 @@ summary(fit)
 
 ## Visualization
 
-The package provides a plot method to compare the confidence intervals visually.
+Print the CI table to compare the bounds across methods:
 
-```{r plot-fit, fig.width=7, fig.height=3.5}
-## plotting has been removed from the package; print the CI table instead
+```{r plot-fit}
 print(fit$ci)
 ```
 
-## Practical Notes
+## Practical Recommendations
 
-For empirical work, the main workflow is:
+Based on the theoretical results of Chhor et al. (2026):
 
-1. estimate with at least one asymptotic method,
-2. compare with a bootstrap method if you want a robustness check,
-3. report the chosen method and confidence level explicitly.
-
-The vignette and README now follow the manuscript by Chhor, D'Haultfoeuille, L'Hour, and Mugnier rather than the older Athey-Imbens reference.
+1. **Use `split` (Sample-Splitting) for smaller samples**: It provides excellent coverage and avoids over-optimistic (too narrow) intervals when sample size is moderate.
+2. **Compare with `bpc`**: Use the bootstrap percentile method as a finite-sample robustness check.
+3. **Specify `panel_data = TRUE`** when your control group data is paired, to correctly account for the temporal correlation within subjects.
+---

@@ -75,7 +75,7 @@ a benchmark in Monte Carlo checks.
 ```r
 library(cicinference)
 
-b1 <- 0.05; b2 <- 0.05; d1 <- 0.05; d2 <- 0.05
+b1 <- 0; b2 <- 0.05; d1 <- 0; d2 <- 0.05
 seed <- 2026
 
 theta0 <- theta_true(b1, b2, d1, d2)
@@ -87,7 +87,7 @@ fit <- cic_inference(data1$Y, data1$X, data1$Z,
                       method = c("no-split", "split", "kde"), timings = TRUE)
 summary(fit)
 
-## Smaller sample - bootstrap methods become tractable
+## Smaller sample
 data2 <- sim_dgp(1e4, b1, b2, d1, d2, seed)
 fit1 <- cic_inference(data2$Y, data2$X, data2$Z,
                        method = c("no-split", "split", "kde", "bse", "bpc"),

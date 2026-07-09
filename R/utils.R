@@ -27,31 +27,18 @@
 # NOTE: This function requires the Rcpp-compiled rect_counts_rcpp and
 # counts_to_density functions. If these are unavailable, an error is raised
 # with instructions for proper installation.
-.make_density_estimator <- function(U_sorted, FYhat) {
+
+.make_density_estimator <- function(U_sorted, FYhat_split) {
   cache <- list()
   n     <- length(U_sorted)
+  # shape ne dépend pas de eps, seulement de pointwise
   list(
     estimate = function(eps, pointwise = 1) {
       key <- paste(eps, pointwise, sep = "_")
       if (is.null(cache[[key]])) {
-        h_vals <- eps * (FYhat * (1 - FYhat))^pointwise
-        
-        # Wrap Rcpp calls with error handling
-        tryCatch({
-          counts <- rect_counts_rcpp(U_sorted, FYhat, h_vals)
-          density <- counts_to_density(counts, h_vals, n)
-        }, error = function(e) {
-          stop(
-            "Density estimation failed due to unavailable compiled C++ code. ",
-            "This function requires rect_counts_rcpp and counts_to_density from ",
-            "the Rcpp binding. Please ensure the package is installed with ",
-            "compilation: install.packages('cicinference', type='source'). ",
-            "Original error: ", conditionMessage(e)
-          )
-        })
-        
+        h_vals <- eps * (FYhat_split * (1 - FYhat_split))^pointwise
         cache[[key]] <<- list(
-          counts = counts,
+          counts = rect_counts_rcpp(U_sorted, FYhat_split, h_vals),
           h_vals = h_vals
         )
       }
@@ -60,6 +47,8 @@
     reset = function() { cache <<- list() }
   )
 }
+
+
 
 .compute_eta_from_f <- function(f_vals, Uhat, idx_sort, k, ok, n) {
   C2     <- mean(Uhat / f_vals)
@@ -120,14 +109,14 @@
 
   U_1 <- FZ1(X[x_1])
   U_2 <- FZ2(X[x_2])
-  h_1 <- epsilon_n * U_1 * (1 - U_1)
-  h_2 <- epsilon_n * U_2 * (1 - U_2)
   FYhat <- seq_len(q - 1L) / q
 
   est_1 <- .make_density_estimator(sort(U_1), FYhat)
   est_2 <- .make_density_estimator(sort(U_2), FYhat)
-  fU_1 <- est_1$estimate(h_1, pointwise = 1)
-  fU_2 <- est_2$estimate(h_2, pointwise = 1)
+  
+  # Correction ici : on passe directement le scalaire epsilon_n
+  fU_1 <- est_1$estimate(epsilon_n, pointwise = 1)
+  fU_2 <- est_2$estimate(epsilon_n, pointwise = 1)
 
   eta_panel <- .fast_eta(diff(sort(Y[y_1])), fU_1, diff(sort(Y[y_2])), fU_2, FYhat)
 
@@ -146,7 +135,6 @@
   )
 }
 
-# Returns a list with point estimate, asymptotic variance, and standard error.
 .panel_split_estimator <- function(Y, X, Z, epsilon_n) {
   n1 <- length(Y)
   n2 <- length(X)
@@ -183,19 +171,19 @@
   theta_2 <- mean(FY2_q(FZ1(X[x_2])))
   theta_hat <- mean(c(theta_1, theta_2))
 
-  #  Ranks and density estimation (\check{f}_U^{(1)} and \check{f}_U^{(2)})
+  # Ranks and density estimation (\check{f}_U^{(1)} and \check{f}_U^{(2)})
   U_1 <- FZ1(X[x_1])
   U_2 <- FZ2(X[x_2])
-  h_1 <- epsilon_n * U_1 * (1 - U_1)
-  h_2 <- epsilon_n * U_2 * (1 - U_2)
   FYhat <- seq_len(q - 1L) / q
 
   est_1 <- .make_density_estimator(sort(U_1), FYhat)
   est_2 <- .make_density_estimator(sort(U_2), FYhat)
-  fU_1 <- est_1$estimate(h_1, pointwise = 1)
-  fU_2 <- est_2$estimate(h_2, pointwise = 1)
+  
+  # Déjà correct ici : on passe directement le scalaire epsilon_n
+  fU_1 <- est_1$estimate(epsilon_n, pointwise = 1)
+  fU_2 <- est_2$estimate(epsilon_n, pointwise = 1)
 
-  #  Double integral via the fast eta routine (\hat{E}[\eta^2])
+  # Double integral via the fast eta routine (\hat{E}[\eta^2])
   eta_panel <- .fast_eta(diff(sort(Y[y_1])), fU_1, diff(sort(Y[y_2])), fU_2, FYhat)
 
   # Compute residuals (\check{\eps}_i^{(j)}) over all X observations
@@ -204,7 +192,6 @@
   eps_panel <- mean((eps_1^2 + eps_2^2) / 2)
 
   # Asymptotic variance scaling matching the \widehat{\widetilde{\sigma}}^2 formula
-  # We use N = min(n1, n2) as the standard package reference sample size.
   N <- min(n1, n2)
   
   # First term:  (2 * N / n1) * Integral
@@ -219,10 +206,3 @@
     r = r
   )
 }
-
-
-
-
-
-
-
