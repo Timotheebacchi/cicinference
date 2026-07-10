@@ -26,6 +26,9 @@ src/config.h
 _Rtestlib/
 ..Rcheck/
 
+# Stata release build artifacts
+stata/release/
+
 #vignettes
 inst/doc/
 vignettes/*.html

@@ -89,6 +89,26 @@ load_local_cicinference <- function(root) {
 
 load_method <- load_local_cicinference(repo_root)
 
+get_reference_function <- function(name) {
+  if (exists(name, envir = .GlobalEnv, mode = "function", inherits = FALSE)) {
+    return(get(name, envir = .GlobalEnv, mode = "function"))
+  }
+  namespace_fun <- tryCatch(
+    getFromNamespace(name, ns = "cicinference"),
+    error = function(e) NULL
+  )
+  if (is.function(namespace_fun)) {
+    return(namespace_fun)
+  }
+  stop(sprintf("Could not find required reference function `%s`.", name), call. = FALSE)
+}
+
+rect_counts_reference <- get_reference_function("rect_counts_rcpp")
+counts_to_density_reference <- get_reference_function("counts_to_density")
+fast_eta_reference <- get_reference_function(".fast_eta")
+compute_eta_from_f_reference <- get_reference_function(".compute_eta_from_f")
+f_y_hat_epanechnikov_reference <- get_reference_function("f_y_hat_epnechikov")
+
 set_reference_seed <- function(seed) {
   set.seed(
     seed,
@@ -266,19 +286,164 @@ make_nosplit_utility_references <- function(dataset) {
   left_quantile_index <- pmax(ceiling(uhat * length(sorted_y)), 1L)
   qcdf_transform <- sorted_y[left_quantile_index]
   theta_from_transform <- mean(qcdf_transform)
+  eps_hat <- mean((theta_from_transform - qcdf_transform)^2)
   fyhat <- seq_len(length(sorted_y) - 1L) / length(sorted_y)
   ysortdiff <- diff(sorted_y)
+  epsilon_n <- 1 / log(length(data$X))
+  sorted_uhat <- sort(uhat, method = "radix")
+  h_vals <- epsilon_n * (fyhat * (1 - fyhat))
+  rect_counts <- rect_counts_reference(sorted_uhat, fyhat, h_vals)
+  fuhat <- counts_to_density_reference(rect_counts, h_vals, length(sorted_uhat))
+  eta_u <- as.numeric(ysortdiff * fuhat)
+  eta_reverse_cumsum <- rev(cumsum(rev(eta_u)))
+  eta_delta_v <- c(fyhat[1], diff(fyhat))
+  eta_term2 <- sum(eta_u * fyhat) * sum(eta_u * fyhat)
+  eta_nosplit <- fast_eta_reference(ysortdiff, fuhat, ysortdiff, fuhat, fyhat)
+  N <- min(length(data$Y), length(data$X), length(data$Z))
+  lbda1_3 <- N * (length(data$Y) + length(data$Z)) / (length(data$Y) * length(data$Z))
+  lbda2 <- N / length(data$X)
+  sigma_sq_nosplit <- lbda1_3 * eta_nosplit + lbda2 * eps_hat
+  se_nosplit <- sqrt(sigma_sq_nosplit / N)
 
   do.call(rbind, list(
     make_utility_component(dataset, "sorted_y", sorted_y),
     make_utility_component(dataset, "sorted_x", sorted_x),
     make_utility_component(dataset, "sorted_z", sorted_z),
+    make_utility_component(dataset, "sorted_uhat", sorted_uhat),
     make_utility_component(dataset, "uhat_ecdf_z_at_x", uhat),
     make_utility_component(dataset, "left_quantile_index", left_quantile_index),
     make_utility_component(dataset, "qcdf_transform", qcdf_transform),
     make_utility_component(dataset, "theta_hat_from_transform", theta_from_transform),
+    make_utility_component(dataset, "eps_hat", eps_hat),
     make_utility_component(dataset, "fyhat_grid", fyhat),
-    make_utility_component(dataset, "ysortdiff", ysortdiff)
+    make_utility_component(dataset, "ysortdiff", ysortdiff),
+    make_utility_component(dataset, "epsilon_n_default", epsilon_n),
+    make_utility_component(dataset, "density_bandwidth", h_vals),
+    make_utility_component(dataset, "rect_counts", rect_counts),
+    make_utility_component(dataset, "fuhat_density", fuhat),
+    make_utility_component(dataset, "fast_eta_u", eta_u),
+    make_utility_component(dataset, "fast_eta_reverse_cumsum", eta_reverse_cumsum),
+    make_utility_component(dataset, "fast_eta_delta_v", eta_delta_v),
+    make_utility_component(dataset, "fast_eta_term2", eta_term2),
+    make_utility_component(dataset, "fast_eta_self", eta_nosplit),
+    make_utility_component(dataset, "sigma_sq_nosplit", sigma_sq_nosplit),
+    make_utility_component(dataset, "se_nosplit", se_nosplit)
+  ))
+}
+
+make_split_utility_references <- function(dataset) {
+  data <- dataset$data
+  if (anyNA(data$Y) || anyNA(data$X) || anyNA(data$Z)) {
+    return(NULL)
+  }
+
+  n1 <- length(data$Y)
+  n2 <- length(data$X)
+  n3 <- length(data$Z)
+  n_half <- min(floor(n1 / 2), floor(n2 / 2), floor(n3 / 2))
+  if (n_half < 2L) {
+    return(NULL)
+  }
+
+  epsilon_n <- 1 / log(n2)
+  N <- min(n1, n2, n3)
+  lbda1_3 <- N * (n1 + n3) / (n1 * n3)
+  lbda2 <- N / n2
+
+  uhat_full <- stats::ecdf(data$Z)(data$X)
+  qcdf_transform <- sort(data$Y, method = "radix")[pmax(ceiling(uhat_full * n1), 1L)]
+  theta_hat <- mean(qcdf_transform)
+  eps_hat <- mean((theta_hat - qcdf_transform)^2)
+
+  z_first <- data$Z[seq_len(n_half)]
+  z_last <- data$Z[seq.int(n3 - n_half + 1L, n3)]
+  x_first <- data$X[seq_len(n_half)]
+  x_last <- data$X[seq.int(n2 - n_half + 1L, n2)]
+  y_first <- data$Y[seq_len(n_half)]
+  y_last <- data$Y[seq.int(n1 - n_half + 1L, n1)]
+
+  uhat1 <- stats::ecdf(z_first)(x_first)
+  uhat2 <- stats::ecdf(z_last)(x_last)
+  sorted_uhat1 <- sort(uhat1, method = "radix")
+  sorted_uhat2 <- sort(uhat2, method = "radix")
+  ysort1diff <- diff(sort(y_first, method = "radix"))
+  ysort2diff <- diff(sort(y_last, method = "radix"))
+  fyhat_split <- seq_len(n_half - 1L) / n_half
+  h_vals <- epsilon_n * (fyhat_split * (1 - fyhat_split))
+  counts1 <- rect_counts_reference(sorted_uhat1, fyhat_split, h_vals)
+  counts2 <- rect_counts_reference(sorted_uhat2, fyhat_split, h_vals)
+  fuhat1 <- counts_to_density_reference(counts1, h_vals, length(sorted_uhat1))
+  fuhat2 <- counts_to_density_reference(counts2, h_vals, length(sorted_uhat2))
+  eta_split <- fast_eta_reference(ysort1diff, fuhat1, ysort2diff, fuhat2, fyhat_split)
+  sigma_sq_split <- lbda1_3 * eta_split + lbda2 * eps_hat
+  se_split <- sqrt(max(sigma_sq_split, 0) / N)
+
+  do.call(rbind, list(
+    make_utility_component(dataset, "split_n_half", n_half),
+    make_utility_component(dataset, "split_x_first", x_first),
+    make_utility_component(dataset, "split_x_last", x_last),
+    make_utility_component(dataset, "split_z_first", z_first),
+    make_utility_component(dataset, "split_z_last", z_last),
+    make_utility_component(dataset, "split_y_first", y_first),
+    make_utility_component(dataset, "split_y_last", y_last),
+    make_utility_component(dataset, "split_uhat1", uhat1),
+    make_utility_component(dataset, "split_uhat2", uhat2),
+    make_utility_component(dataset, "split_sorted_uhat1", sorted_uhat1),
+    make_utility_component(dataset, "split_sorted_uhat2", sorted_uhat2),
+    make_utility_component(dataset, "split_ysort1diff", ysort1diff),
+    make_utility_component(dataset, "split_ysort2diff", ysort2diff),
+    make_utility_component(dataset, "split_fyhat_grid", fyhat_split),
+    make_utility_component(dataset, "split_density_bandwidth", h_vals),
+    make_utility_component(dataset, "split_rect_counts1", counts1),
+    make_utility_component(dataset, "split_rect_counts2", counts2),
+    make_utility_component(dataset, "split_fuhat1", fuhat1),
+    make_utility_component(dataset, "split_fuhat2", fuhat2),
+    make_utility_component(dataset, "split_eta", eta_split),
+    make_utility_component(dataset, "split_sigma_sq", sigma_sq_split),
+    make_utility_component(dataset, "split_se", se_split)
+  ))
+}
+
+make_kde_utility_references <- function(dataset) {
+  data <- dataset$data
+  if (anyNA(data$Y) || anyNA(data$X) || anyNA(data$Z)) {
+    return(NULL)
+  }
+
+  n1 <- length(data$Y)
+  n2 <- length(data$X)
+  n3 <- length(data$Z)
+  N <- min(n1, n2, n3)
+  epsilon_n <- 1 / log(n2)
+
+  uhat <- stats::ecdf(data$Z)(data$X)
+  sorted_y <- sort(data$Y, method = "radix")
+  qcdf_transform <- sorted_y[pmax(ceiling(uhat * n1), 1L)]
+  theta_hat <- mean(qcdf_transform)
+  eps_hat <- mean((theta_hat - qcdf_transform)^2)
+  h <- epsilon_n * uhat * (1 - uhat)
+
+  idx_sort <- order(uhat)
+  u_sort <- uhat[idx_sort]
+  grid <- seq_len(length(uhat)) / length(uhat)
+  k <- findInterval(grid - 1e-12, u_sort) + 1L
+  ok <- as.integer(k <= length(uhat))
+  f_one <- f_y_hat_epanechnikov_reference(data$Y, qcdf_transform, h)
+  eta_kde <- compute_eta_from_f_reference(f_one, uhat, idx_sort, k, ok == 1L, length(uhat))
+  sigma_sq_kde <- 2 * eta_kde + eps_hat
+  se_kde <- sqrt(max(sigma_sq_kde, 0) / N)
+
+  do.call(rbind, list(
+    make_utility_component(dataset, "kde_h", h),
+    make_utility_component(dataset, "kde_idx_sort", idx_sort),
+    make_utility_component(dataset, "kde_u_sort", u_sort),
+    make_utility_component(dataset, "kde_grid", grid),
+    make_utility_component(dataset, "kde_k", k),
+    make_utility_component(dataset, "kde_ok", ok),
+    make_utility_component(dataset, "kde_f_one", f_one),
+    make_utility_component(dataset, "kde_eta", eta_kde),
+    make_utility_component(dataset, "kde_sigma_sq", sigma_sq_kde),
+    make_utility_component(dataset, "kde_se", se_kde)
   ))
 }
 
@@ -288,8 +453,125 @@ utility_reference_datasets <- Filter(
 )
 utility_nosplit_references <- do.call(
   rbind,
-  lapply(utility_reference_datasets, make_nosplit_utility_references)
+  c(
+    lapply(utility_reference_datasets, make_nosplit_utility_references),
+    lapply(utility_reference_datasets, make_split_utility_references),
+    lapply(utility_reference_datasets, make_kde_utility_references)
+  )
 )
+
+make_bootstrap_index_rows <- function(dataset, role, index_matrix) {
+  do.call(rbind, lapply(seq_len(nrow(index_matrix)), function(replicate_id) {
+    data.frame(
+      dataset_id = dataset$dataset_id,
+      kind = dataset$kind,
+      role = role,
+      replicate = replicate_id,
+      draw = seq_len(ncol(index_matrix)),
+      index = as.integer(index_matrix[replicate_id, ])
+    )
+  }))
+}
+
+bootstrap_values_from_indices <- function(data, y_index, x_index, z_index) {
+  sorted_y <- sort(data$Y, method = "radix")
+  sorted_z <- sort(data$Z, method = "radix")
+  x_values <- data$X
+  n1 <- length(sorted_y)
+  n2 <- length(x_values)
+  n3 <- length(sorted_z)
+
+  vapply(seq_len(nrow(y_index)), function(replicate_id) {
+    counts_y <- tabulate(y_index[replicate_id, ], nbins = n1)
+    counts_z <- tabulate(z_index[replicate_id, ], nbins = n3)
+    cdf_y_counts <- cumsum(counts_y)
+    cdf_z <- cumsum(counts_z) / n3
+
+    transformed <- vapply(x_index[replicate_id, ], function(x_draw) {
+      xb <- x_values[[x_draw]]
+      pos <- findInterval(xb, sorted_z)
+      u <- if (pos == 0L) 0 else cdf_z[[pos]]
+      rank_y <- ceiling(u * n1)
+      rank_y <- min(max(rank_y, 1L), n1)
+      sorted_y[[which(cdf_y_counts >= rank_y)[[1L]]]]
+    }, numeric(1L))
+
+    mean(transformed)
+  }, numeric(1L))
+}
+
+make_bootstrap_common_references <- function(dataset, B, seed) {
+  data <- dataset$data
+  if (anyNA(data$Y) || anyNA(data$X) || anyNA(data$Z)) {
+    return(NULL)
+  }
+
+  n1 <- length(data$Y)
+  n2 <- length(data$X)
+  n3 <- length(data$Z)
+  set_reference_seed(seed)
+
+  y_index <- t(replicate(B, sample.int(n1, n1, replace = TRUE)))
+  x_index <- t(replicate(B, sample.int(n2, n2, replace = TRUE)))
+  z_index <- t(replicate(B, sample.int(n3, n3, replace = TRUE)))
+  boot_theta <- bootstrap_values_from_indices(data, y_index, x_index, z_index)
+
+  uhat <- stats::ecdf(data$Z)(data$X)
+  qcdf_transform <- sort(data$Y, method = "radix")[pmax(ceiling(uhat * n1), 1L)]
+  theta_hat <- mean(qcdf_transform)
+  alpha <- (0.05 / 2)
+  z_value <- stats::qnorm(1 - alpha)
+  se_boot <- stats::sd(boot_theta)
+  bpc_lower <- stats::quantile(boot_theta, probs = alpha, names = FALSE, type = 7)
+  bpc_upper <- stats::quantile(boot_theta, probs = 1 - alpha, names = FALSE, type = 7)
+
+  list(
+    index_rows = do.call(rbind, list(
+      make_bootstrap_index_rows(dataset, "Y", y_index),
+      make_bootstrap_index_rows(dataset, "X", x_index),
+      make_bootstrap_index_rows(dataset, "Z", z_index)
+    )),
+    draw_rows = data.frame(
+      dataset_id = dataset$dataset_id,
+      kind = dataset$kind,
+      replicate = seq_len(B),
+      theta_boot = as.numeric(boot_theta)
+    ),
+    summary_rows = data.frame(
+      dataset_id = dataset$dataset_id,
+      kind = dataset$kind,
+      B = B,
+      seed = seed,
+      level = 0.95,
+      theta_hat = theta_hat,
+      se_boot = se_boot,
+      bse_lower = theta_hat - z_value * se_boot,
+      bse_upper = theta_hat + z_value * se_boot,
+      bse_length = 2 * z_value * se_boot,
+      bpc_lower = bpc_lower,
+      bpc_upper = bpc_upper,
+      bpc_length = bpc_upper - bpc_lower,
+      n_y = n1,
+      n_x = n2,
+      n_z = n3
+    )
+  )
+}
+
+bootstrap_reference_specs <- list(
+  list(dataset_id = "xs_small", B = 40L, seed = 932601L),
+  list(dataset_id = "xs_medium", B = 40L, seed = 932602L),
+  list(dataset_id = "xs_edge_ties", B = 40L, seed = 932603L),
+  list(dataset_id = "xs_edge_extreme", B = 40L, seed = 932604L)
+)
+
+bootstrap_reference_results <- lapply(bootstrap_reference_specs, function(spec) {
+  dataset <- datasets[[match(spec$dataset_id, vapply(datasets, `[[`, character(1L), "dataset_id"))]]
+  make_bootstrap_common_references(dataset, B = spec$B, seed = spec$seed)
+})
+bootstrap_index_references <- do.call(rbind, lapply(bootstrap_reference_results, `[[`, "index_rows"))
+bootstrap_draw_references <- do.call(rbind, lapply(bootstrap_reference_results, `[[`, "draw_rows"))
+bootstrap_summary_references <- do.call(rbind, lapply(bootstrap_reference_results, `[[`, "summary_rows"))
 
 cross_section_methods <- c("no-split", "split", "kde", "bse", "bpc")
 panel_methods <- c("no-split", "split")
@@ -556,7 +838,9 @@ generation_manifest <- data.frame(
     "rng_kind",
     "cross_section_methods",
     "panel_methods",
-    "bootstrap_reference_included"
+    "bootstrap_reference_included",
+    "bootstrap_common_index_B",
+    "bootstrap_common_index_datasets"
   ),
   value = c(
     repo_root,
@@ -565,7 +849,9 @@ generation_manifest <- data.frame(
     paste(RNGkind(), collapse = ";"),
     paste(cross_section_methods, collapse = ";"),
     paste(panel_methods, collapse = ";"),
-    "TRUE"
+    "TRUE",
+    paste(unique(vapply(bootstrap_reference_specs, `[[`, integer(1L), "B")), collapse = ";"),
+    paste(vapply(bootstrap_reference_specs, `[[`, character(1L), "dataset_id"), collapse = ";")
   )
 )
 
@@ -578,6 +864,9 @@ write_csv(reference_status, file.path(reference_dir, "reference_status.csv"))
 write_csv(dgp_function_references, file.path(reference_dir, "dgp_function_references.csv"))
 write_csv(generation_manifest, file.path(reference_dir, "reference_generation_manifest.csv"))
 write_csv(utility_nosplit_references, file.path(reference_dir, "utility_nosplit_references.csv"))
+write_csv(bootstrap_index_references, file.path(reference_dir, "bootstrap_index_references.csv"))
+write_csv(bootstrap_draw_references, file.path(reference_dir, "bootstrap_draw_references.csv"))
+write_csv(bootstrap_summary_references, file.path(reference_dir, "bootstrap_summary_references.csv"))
 
 cat("Reference generation complete.\n")
 cat("Output directory:", reference_dir, "\n")
@@ -585,5 +874,7 @@ cat("Datasets:", nrow(dataset_manifest), "\n")
 cat("Fit calls:", nrow(fit_spec_manifest), "\n")
 cat("Reference output rows:", nrow(reference_outputs), "\n")
 cat("Utility reference rows:", nrow(utility_nosplit_references), "\n")
+cat("Bootstrap index rows:", nrow(bootstrap_index_references), "\n")
+cat("Bootstrap draw rows:", nrow(bootstrap_draw_references), "\n")
 cat("Statuses:\n")
 print(table(reference_status$status, useNA = "ifany"))

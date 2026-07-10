@@ -6,3 +6,5 @@
 "cross_section_methods","no-split;split;kde;bse;bpc"
 "panel_methods","no-split;split"
 "bootstrap_reference_included","TRUE"
+"bootstrap_common_index_B","40"
+"bootstrap_common_index_datasets","xs_small;xs_medium;xs_edge_ties;xs_edge_extreme"

@@ -1,0 +1,14 @@
+v 3
+d cicinference: Changes-in-Changes inference for Stata
+d
+d Stata implementation of the cicinference R package estimators.
+d Development tests and R reference CSVs are intentionally excluded from
+d release archives; they remain in the GitHub source repository.
+d
+f cicinference.ado
+f cicinference.sthlp
+f cicinference_quantiles.mata
+f cicinference_density.mata
+f cicinference_variance.mata
+f cicinference_main.mata
+f cicinference_bootstrap.mata

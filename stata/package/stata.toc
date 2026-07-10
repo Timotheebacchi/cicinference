@@ -1,0 +1,5 @@
+v 3
+d cicinference
+d
+d User-facing Stata release files for cicinference.
+p cicinference Changes-in-Changes inference for Stata
