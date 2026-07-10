@@ -133,6 +133,17 @@ Athey, S. & Imbens, G. W. (2006). Identification and Inference in Nonlinear
 Difference-in-Differences Models. *Econometrica*, 74(2), 431-497.
 [doi:10.1111/j.1468-0262.2006.00668.x](https://doi.org/10.1111/j.1468-0262.2006.00668.x)
 
+## Stata implementation
+
+A native Stata implementation of `cicinference` is currently under development.
+
+The implementation and migration tools are located in the `stata/` directory.
+
+For development instructions, testing procedures, and release packaging, see:
+
+- `stata/README-stata.md`
+
+
 ## License
 
 MIT + file LICENSE
