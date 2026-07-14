@@ -14,6 +14,12 @@ RcppExports.*
 .DS_Store
 Thumbs.db
 
+# Local agent instructions and Codex metadata
+AGENTS.md
+.codex/
+.github/agents/
+.github/skills/
+
 # Build
 src/*.o
 src/*.so
@@ -24,6 +30,7 @@ src/config.h
 *.tar.gz
 
 _Rtestlib/
+*.Rcheck/
 ..Rcheck/
 
 # Stata release build artifacts

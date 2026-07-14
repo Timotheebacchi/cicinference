@@ -1,13 +1,33 @@
-citHeader("To cite cicinference in publications use:")
+citHeader("To cite quantcdf.inference in publications use:")
 
 bibentry(
   bibtype = "Unpublished",
   title = "Asymptotic Properties of Empirical Quantile-Based Estimators",
   author = c(
-    person(given = "Julien", family = "Chhor"),
-    person(given = "Xavier", family = "D'Haultfoeuille"),
-    person(given = "Jérémy", family = "L'Hour"),
-    person(given = "Martin", family = "Mugnier")
+    person(
+      given = "Julien",
+      family = "Chhor",
+      email = "julien.chhor@tse-fr.eu",
+      comment = c(affiliation = "Toulouse School of Economics, University of Toulouse Capitole, Toulouse, France")
+    ),
+    person(
+      given = "Xavier",
+      family = "D'Haultfoeuille",
+      email = "xavier.dhaultfoeuille@ensae.fr",
+      comment = c(affiliation = "CREST-ENSAE")
+    ),
+    person(
+      given = "Jérémy",
+      family = "L'Hour",
+      email = "jeremy.l.hour@ensae.fr",
+      comment = c(affiliation = "CFM & CREST-ENSAE")
+    ),
+    person(
+      given = "Martin",
+      family = "Mugnier",
+      email = "martin.mugnier@psemail.eu",
+      comment = c(affiliation = "Paris School of Economics")
+    )
   ),
   year = "2026",
   note = "https://arxiv.org/abs/2607.00219"

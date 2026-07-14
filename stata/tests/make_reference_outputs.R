@@ -41,7 +41,7 @@ write_csv <- function(x, path) {
   utils::write.csv(x, path, row.names = FALSE, na = "", quote = TRUE)
 }
 
-load_local_cicinference <- function(root) {
+load_local_quantcdf_inference <- function(root) {
   if (requireNamespace("pkgload", quietly = TRUE)) {
     loaded <- tryCatch({
       suppressPackageStartupMessages(
@@ -87,14 +87,14 @@ load_local_cicinference <- function(root) {
   "Rcpp::sourceCpp + sys.source"
 }
 
-load_method <- load_local_cicinference(repo_root)
+load_method <- load_local_quantcdf_inference(repo_root)
 
 get_reference_function <- function(name) {
   if (exists(name, envir = .GlobalEnv, mode = "function", inherits = FALSE)) {
     return(get(name, envir = .GlobalEnv, mode = "function"))
   }
   namespace_fun <- tryCatch(
-    getFromNamespace(name, ns = "cicinference"),
+    getFromNamespace(name, ns = "quantcdf.inference"),
     error = function(e) NULL
   )
   if (is.function(namespace_fun)) {
@@ -108,6 +108,7 @@ counts_to_density_reference <- get_reference_function("counts_to_density")
 fast_eta_reference <- get_reference_function(".fast_eta")
 compute_eta_from_f_reference <- get_reference_function(".compute_eta_from_f")
 f_y_hat_epanechnikov_reference <- get_reference_function("f_y_hat_epnechikov")
+fit_reference <- get_reference_function("fit")
 
 set_reference_seed <- function(seed) {
   set.seed(
@@ -675,6 +676,7 @@ fit_spec_manifest <- do.call(rbind, lapply(fit_specs, function(spec) {
 
 make_output_rows <- function(fit, spec, warnings) {
   ci <- fit$ci
+  output_method <- ifelse(ci$method == "ai", "kde", ci$method)
   alpha <- (1 - fit$level) / 2
   z_value <- stats::qnorm(1 - alpha)
   se <- ifelse(ci$method == "bpc", NA_real_, ci$length / (2 * z_value))
@@ -692,7 +694,7 @@ make_output_rows <- function(fit, spec, warnings) {
     effective_B = if (any(spec$methods %in% c("bse", "bpc"))) max(spec$B, 200L) else NA_integer_,
     level = fit$level,
     fit_seed = spec$fit_seed,
-    method = ci$method,
+    method = output_method,
     theta_hat = fit$theta_hat,
     ci_lower = ci$lower,
     ci_upper = ci$upper,
@@ -721,14 +723,15 @@ run_reference_fit <- function(spec) {
   data <- dataset_by_id[[spec$dataset_id]]
   warnings <- character()
   set_reference_seed(spec$fit_seed)
+  r_methods <- ifelse(spec$methods == "kde", "ai", spec$methods)
 
   fit <- tryCatch(
     withCallingHandlers(
-      cic_inference(
-        Y = data$Y,
-        X = data$X,
-        Z = data$Z,
-        method = spec$methods,
+      fit_reference(
+        sample1 = data$Y,
+        sample2 = data$X,
+        sample3 = data$Z,
+        method = r_methods,
         B = if (is.na(spec$B)) 1000L else spec$B,
         level = spec$level,
         panel_data = spec$panel_data,

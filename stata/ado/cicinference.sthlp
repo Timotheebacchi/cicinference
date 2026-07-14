@@ -22,7 +22,7 @@
 {pstd}
 {cmd:cicinference} estimates the Changes-in-Changes target
 E[F_Y^{-1}(F_Z(X))] and reports a confidence interval using the selected
-variance or bootstrap method from the R package {cmd:cicinference}.
+variance or bootstrap method from the R package {cmd:quantcdf.inference}.
 
 {pstd}
 The command uses complete observations of {it:y}, {it:x}, and {it:z};

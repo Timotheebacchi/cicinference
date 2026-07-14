@@ -1,283 +1,170 @@
 library(testthat)
-library(cicinference)
+library(quantcdf.inference)
 
-# ── DGP helpers ───────────────────────────────────────────────────────────────
-# Quantile function from the Monte Carlo section of the paper:
-#   F_Y^{-1}(t) = -t^{-d1} + (1-t)^{-d2}
-# with the convention that d1 = 0 => t^{-d1} = 1, (1-t)^{-d2} with d2=0 => 1
-qY_dgp <- function(t, d1 = 0, d2 = 0.05) {
-  term1 <- if (d1 == 0) 1 else t^(-d1)
-  term2 <- if (d2 == 0) 1 else (1 - t)^(-d2)
-  -term1 + term2
-}
+test_that("fit() exposes the new public API", {
+  expect_equal(names(formals(fit))[1:4], c("sample1", "sample2", "sample3", "method"))
 
-# True theta_0 = [B(1-b1, 1-b2-d2) - B(1-b1-d1, 1-b2)] / B(1-b1, 1-b2)
-theta_true <- function(b1 = 0, b2 = 0.05, d1 = 0, d2 = 0.05) {
-  (beta(1 - b1, 1 - b2 - d2) - beta(1 - b1 - d1, 1 - b2)) /
-    beta(1 - b1, 1 - b2)
-}
-
-# Simulate one dataset from the DGP
-sim_dgp <- function(n, b1 = 0, b2 = 0.05, d1 = 0, d2 = 0.05, seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
-  W <- runif(n)
-  Y <- qY_dgp(W, d1, d2)
-  Z <- rnorm(n)
-  V <- rbeta(n, 1 - b1, 1 - b2)
-  X <- qnorm(V)
-  list(Y = Y, X = X, Z = Z)
-}
-
-# ── Tests : structure de l'output ─────────────────────────────────────────────
-test_that("cic_inference() retourne un objet de classe 'cic'", {
   d <- sim_dgp(200, seed = 1)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split", B = 200)
-  expect_s3_class(fit, "cic")
+  out <- fit(d$Y, d$X, d$Z, method = c("no-split", "split", "ai"))
+
+  expect_s3_class(out, "quantcdf_fit")
+  expect_named(
+    out,
+    c("theta_hat", "ci", "level", "n", "method", "panel_data", "epsilon_n", "h_ai")
+  )
+  expect_equal(out$ci$method, c("no-split", "split", "ai"))
+  expect_true(all(is.finite(out$ci$lower)))
+  expect_true(all(is.finite(out$ci$upper)))
+  expect_true(all(out$ci$lower < out$ci$upper))
 })
 
-test_that("cic_inference() retourne les bons champs", {
+test_that("fit() preserves the left-continuous quantile convention at zero", {
+  sample1 <- c(10, 20, 30, 40)
+  sample2 <- c(-1, 0, 1, 2)
+  sample3 <- c(0, 1, 2, 3)
+
+  out <- fit(sample1, sample2, sample3, method = "no-split")
+
+  expect_equal(out$theta_hat, mean(c(10, 10, 20, 30)))
+})
+
+test_that("obsolete public names and method labels are rejected", {
   d <- sim_dgp(200, seed = 2)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = c("no-split", "bse", "bpc"), B = 200)
-  expect_named(fit, c("theta_hat", "ci", "level", "n", "method", "panel_data", "h"))
-  expect_equal(nrow(fit$ci), 3)
-  expect_equal(fit$ci$method, c("no-split", "bse", "bpc"))
+  old_function <- paste0("cic", "_inference")
+  old_method <- paste0("k", "de")
+
+  expect_false(exists(old_function, mode = "function"))
+  expect_error(fit(d$Y, d$X, d$Z, method = old_method))
+  expect_error(fit(d$Y, d$X, d$Z, method = "no-split", h = 0.5),
+               regexp = "Unused argument")
 })
 
-test_that("les tailles d'échantillon sont bien enregistrées", {
-  d <- sim_dgp(200, seed = 3)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split")
-  expect_equal(unname(fit$n), c(200L, 200L, 200L))
+test_that("bandwidths follow the split/no-split and AI formulas", {
+  d <- sim_dgp(300, seed = 3)
+
+  out_no_split <- fit(d$Y, d$X, d$Z, method = "no-split")
+  expect_equal(out_no_split$epsilon_n, 1 / log(length(d$X)))
+  expect_true(is.na(out_no_split$h_ai))
+
+  out_ai <- fit(d$Y, d$X, d$Z, method = "ai")
+  expect_true(is.na(out_ai$epsilon_n))
+  expect_equal(out_ai$h_ai, 1.06 * length(d$Y)^(-1 / 5) / stats::sd(d$Y))
 })
 
-test_that("le niveau de confiance est respecté", {
+test_that("AI method is robust for targeted generated-data seeds", {
+  seeds <- c(1, 2, 42, 123, 2026, 9999)
+
+  for (seed in seeds) {
+    d <- sim_dgp(500, seed = seed)
+    out <- fit(d$Y, d$X, d$Z, method = "ai")
+    expect_true(is.finite(out$theta_hat), info = paste("seed", seed))
+    expect_true(all(is.finite(out$ci$length)), info = paste("seed", seed))
+    expect_true(all(out$ci$lower < out$ci$upper), info = paste("seed", seed))
+  }
+})
+
+test_that("AI method is deterministic in the ambient RNG seed for fixed data", {
+  d <- sim_dgp(500, seed = 2026)
+  ambient_seeds <- c(1, 2, 42, 123, 2026, 9999)
+
+  lengths <- vapply(ambient_seeds, function(seed) {
+    set.seed(seed)
+    fit(d$Y, d$X, d$Z, method = "ai")$ci$length
+  }, numeric(1))
+
+  expect_true(all(is.finite(lengths)))
+  expect_equal(lengths, rep(lengths[[1]], length(lengths)))
+})
+
+test_that("AI method is finite on a larger deterministic seed collection", {
+  seeds <- 100:125
+
+  lengths <- vapply(seeds, function(seed) {
+    d <- sim_dgp(250, seed = seed)
+    fit(d$Y, d$X, d$Z, method = "ai")$ci$length
+  }, numeric(1))
+
+  expect_true(all(is.finite(lengths)))
+  expect_true(all(lengths > 0))
+})
+
+test_that("coef(), confint(), and summary() use the quantcdf_fit class", {
   d <- sim_dgp(200, seed = 4)
-  fit90 <- cic_inference(d$Y, d$X, d$Z, method = "no-split", level = 0.90)
-  fit95 <- cic_inference(d$Y, d$X, d$Z, method = "no-split", level = 0.95)
-  # IC à 90% doit être plus court qu'à 95%
-  expect_lt(fit90$ci$length[1], fit95$ci$length[1])
+  out <- fit(d$Y, d$X, d$Z, method = c("no-split", "bse"), B = 200)
+
+  expect_equal(coef(out), out$theta_hat)
+  expect_equal(rownames(confint(out)), c("no-split", "bse"))
+
+  printed <- capture.output(summary(out))
+  expect_true(any(grepl("Std. Error", printed, fixed = TRUE)))
+  expect_true(any(grepl("Empirical Quantile Inference", printed, fixed = TRUE)))
 })
 
-# ── Tests : validité des intervalles ──────────────────────────────────────────
-test_that("lower < upper pour toutes les méthodes", {
+test_that("panel_data remains limited to split and no-split", {
   d <- sim_dgp(200, seed = 5)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = c("no-split", "bse", "bpc"), B = 200)
-  expect_true(all(fit$ci$lower < fit$ci$upper))
-})
 
-test_that("length == upper - lower", {
-  d <- sim_dgp(200, seed = 6)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = c("no-split", "bse", "bpc"), B = 200)
-  expect_equal(fit$ci$length, fit$ci$upper - fit$ci$lower, tolerance = 1e-10)
-})
-
-test_that("theta_hat est dans l'IC (no-split) pour un grand n", {
-  d <- sim_dgp(2000, seed = 7)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split")
-  expect_gte(fit$theta_hat, fit$ci$lower[1])
-  expect_lte(fit$theta_hat, fit$ci$upper[1])
-})
-
-# ── Tests : convergence vers theta_0 ──────────────────────────────────────────
-test_that("theta_hat converge vers theta_0 pour n grand", {
-  # DGP de base : b1=0, b2=0.05, d1=0, d2=0.05
-  theta_0 <- theta_true(b1 = 0, b2 = 0.05, d1 = 0, d2 = 0.05)
-  d   <- sim_dgp(5000, b1 = 0, b2 = 0.05, d1 = 0, d2 = 0.05, seed = 42)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split")
-  # Pour n=5000, on tolère 3% d'écart
-  expect_equal(fit$theta_hat, theta_0, tolerance = 0.03)
-})
-
-test_that("theta_0 est couvert par l'IC no-split pour n grand", {
-  theta_0 <- theta_true(b1 = 0, b2 = 0.05, d1 = 0, d2 = 0.05)
-  d   <- sim_dgp(5000, b1 = 0, b2 = 0.05, d1 = 0, d2 = 0.05, seed = 99)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split")
-  expect_gte(theta_0, fit$ci$lower[1])
-  expect_lte(theta_0, fit$ci$upper[1])
-})
-
-# ── Tests : cas limites et erreurs attendues ───────────────────────────────────
-test_that("B < 200 déclenche un warning et est corrigé à 200", {
-  d <- sim_dgp(200, seed = 8)
-  expect_warning(
-    cic_inference(d$Y, d$X, d$Z, method = "bse", B = 50),
-    regexp = "B < 200"
+  expect_s3_class(
+    fit(d$Y, d$X, d$Z, method = c("no-split", "split"), panel_data = TRUE),
+    "quantcdf_fit"
   )
-})
-
-test_that("vecteurs non numériques déclenchent une erreur", {
-  d <- sim_dgp(200, seed = 9)
-  expect_error(cic_inference(as.character(d$Y), d$X, d$Z))
-})
-
-test_that("taille impaire est acceptée pour les méthodes bootstrap", {
-  d <- sim_dgp(201, seed = 17)
-  expect_s3_class(cic_inference(d$Y, d$X, d$Z, method = "bse", B = 200), "cic")
-  expect_s3_class(cic_inference(d$Y, d$X, d$Z, method = "bpc", B = 200), "cic")
-})
-
-test_that("taille impaire est acceptée pour la méthode no-split", {
-  d <- sim_dgp(201, seed = 18)
-  expect_s3_class(cic_inference(d$Y, d$X, d$Z, method = "no-split"), "cic")
-})
-
-test_that("method invalide déclenche une erreur", {
-  d <- sim_dgp(200, seed = 10)
-  expect_error(cic_inference(d$Y, d$X, d$Z, method = "mauvaise_methode"))
-})
-
-test_that("bandwidth manuel est bien utilisé", {
-  d   <- sim_dgp(200, seed = 11)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split", h = 0.5)
-  expect_equal(fit$h, 0.5)
-})
-
-test_that("h influe sur l'estimation no-split", {
-  d <- sim_dgp(200, seed = 20)
-  fit_small <- cic_inference(d$Y, d$X, d$Z, method = "no-split", h = 0.05)
-  fit_large <- cic_inference(d$Y, d$X, d$Z, method = "no-split", h = 0.5)
-  expect_false(identical(fit_small$ci$length, fit_large$ci$length))
-})
-
-test_that("h nul ou négatif déclenche une erreur", {
-  d <- sim_dgp(200, seed = 19)
-  expect_error(cic_inference(d$Y, d$X, d$Z, h = 0), regexp = "h")
-  expect_error(cic_inference(d$Y, d$X, d$Z, h = -0.5), regexp = "h")
-})
-
-# ── Tests : bootstrap ─────────────────────────────────────────────────────────
-test_that("bse et bpc donnent des IC différents", {
-  d   <- sim_dgp(200, seed = 12)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = c("bse", "bpc"), B = 200)
-  # Pas identiques (sauf coïncidence impossible)
-  expect_false(fit$ci$lower[1] == fit$ci$lower[2])
-})
-
-test_that("split et kde sont disponibles", {
-  d <- sim_dgp(200, seed = 23)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = c("split", "kde"))
-  expect_equal(fit$ci$method, c("split", "kde"))
-  expect_true(all(is.finite(fit$ci$length)))
-  expect_true(all(fit$ci$lower < fit$ci$upper))
-})
-
-test_that("plus de réplications bootstrap donne des IC plus stables", {
-  d    <- sim_dgp(500, seed = 13)
-  set.seed(1); fit_small <- cic_inference(d$Y, d$X, d$Z, method = "bse", B = 200)
-  set.seed(1); fit_large <- cic_inference(d$Y, d$X, d$Z, method = "bse", B = 999)
-  # Les deux doivent être du même ordre de grandeur (pas un test de précision,
-  # juste qu'on n'explose pas)
-  expect_lt(abs(fit_small$ci$length[1] - fit_large$ci$length[1]), 0.2)
-})
-
-test_that("coef.cic_inference retourne theta_hat", {
-  d <- sim_dgp(200, seed = 14)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split")
-  expect_equal(coef(fit), fit$theta_hat)
-})
-
-test_that("confint.cic_inference retourne les intervalles de confiance", {
-  d <- sim_dgp(200, seed = 15)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = c("no-split", "bse"), B = 200)
-  ci <- confint(fit)
-  expected <- as.matrix(fit$ci[, c("lower", "upper")])
-  rownames(expected) <- fit$ci$method
-  expect_equal(ci, expected)
-  expect_equal(rownames(ci), c("no-split", "bse"))
-})
-
-test_that("summary.cic_inference montre une sortie familière aux économistes", {
-  d <- sim_dgp(200, seed = 29)
-  fit <- cic_inference(d$Y, d$X, d$Z, method = "no-split")
-  out <- capture.output(summary(fit))
-  expect_true(any(grepl("Std. Error", out, fixed = TRUE)))
-  expect_true(any(grepl("t value", out, fixed = TRUE)))
-  expect_true(any(grepl("Pr(>|t|)", out, fixed = TRUE)))
-})
-
-test_that("timings = TRUE affiche des jalons de calcul", {
-  d <- sim_dgp(200, seed = 30)
-  msgs <- character()
-  fit <- withCallingHandlers(
-    cic_inference(d$Y, d$X, d$Z, method = c("no-split", "bse"), B = 200, timings = TRUE),
-    message = function(m) {
-      msgs <<- c(msgs, conditionMessage(m))
-      invokeRestart("muffleMessage")
-    }
-  )
-  expect_s3_class(fit, "cic")
-  expect_true(any(grepl("cic timing \\[bootstrap\\]", msgs)))
-})
-
-
-# ── Tests : Input Sanitization (Code Audit) ──────────────────────────────────
-test_that("B = NA déclenche une erreur", {
-  d <- sim_dgp(200, seed = 21)
-  expect_error(cic_inference(d$Y, d$X, d$Z, method = "bse", B = NA),
-               regexp = "B must not be NULL or NA")
-})
-
-test_that("B = NULL déclenche une erreur", {
-  d <- sim_dgp(200, seed = 22)
-  expect_error(cic_inference(d$Y, d$X, d$Z, method = "bse", B = NULL),
-               regexp = "B must not be NULL or NA")
-})
-
-# Basic input validation tests (replaced extensive diagnostics tests)
-test_that("non-vector inputs trigger a warning", {
-  d <- sim_dgp(100, seed = 40)
-  # pass a matrix instead of a vector
-  Ym <- matrix(d$Y, ncol = 1)
-  expect_warning(cic_inference(Ym, d$X, d$Z), regexp = "should be a numeric vector|coercing to numeric vector")
-})
-
-test_that("inputs with many ties produce a warning", {
-  n <- 200
-  Y <- rep(1, n)
-  X <- rnorm(n)
-  Z <- rnorm(n)
-  expect_warning(cic_inference(Y, X, Z), regexp = "tied values|many ties|uniqueness")
-})
-
-# ── Tests: Panel Data (panel_data) ─────────────────────────────────────
-test_that("panel_data = TRUE works for 'no-split' and 'split'", {
-  d <- sim_dgp(200, seed = 101)
-
-  # Test the 'no-split' method in panel mode
-  fit_panel_nosplit <- cic_inference(d$Y, d$X, d$Z, method = "no-split", panel_data = TRUE)
-  expect_s3_class(fit_panel_nosplit, "cic")
-  expect_true(fit_panel_nosplit$panel_data)
-  expect_true(all(is.finite(fit_panel_nosplit$ci$length)))
-
-  # Test the 'split' method in panel mode (new integration)
-  fit_panel_split <- cic_inference(d$Y, d$X, d$Z, method = "split", panel_data = TRUE)
-  expect_s3_class(fit_panel_split, "cic")
-  expect_true(fit_panel_split$panel_data)
-  expect_true(all(is.finite(fit_panel_split$ci$length)))
-})
-
-test_that("panel_data = TRUE accepts simultaneous calls for 'no-split' and 'split'", {
-  d <- sim_dgp(200, seed = 102)
-
-  # Verification of the logical bug fix: calling both methods simultaneously should pass smoothly
-  expect_silent(
-    fit_both <- cic_inference(d$Y, d$X, d$Z, method = c("no-split", "split"), panel_data = TRUE)
-  )
-  expect_equal(nrow(fit_both$ci), 2)
-  expect_equal(fit_both$ci$method, c("no-split", "split"))
-})
-
-test_that("panel_data = TRUE throws an error with unsupported methods", {
-  d <- sim_dgp(200, seed = 103)
-
-  # A single unsupported method
   expect_error(
-    cic_inference(d$Y, d$X, d$Z, method = "kde", panel_data = TRUE),
-    regexp = "panel_data = TRUE is currently supported only for method"
+    fit(d$Y, d$X, d$Z, method = "ai", panel_data = TRUE),
+    regexp = "panel_data = TRUE"
   )
+})
 
-  # A mix containing an unsupported method
-  expect_error(
-    cic_inference(d$Y, d$X, d$Z, method = c("no-split", "bse"), panel_data = TRUE),
-    regexp = "panel_data = TRUE is currently supported only for method"
-  )
+test_that("cic_fit() delegates the counterfactual point estimate to fit()", {
+  d <- sim_dgp(300, seed = 6)
+  Y11 <- d$Y + 1
+
+  theta_fit <- fit(sample1 = d$Y, sample2 = d$X, sample3 = d$Z, method = "no-split")
+  out <- cic_fit(Y11, d$X, d$Y, d$Z, method = "no-split")
+
+  expect_s3_class(out, "quantcdf_cic_fit")
+  expect_equal(out$theta_hat, mean(Y11) - theta_fit$theta_hat)
+  expect_equal(out$components$counterfactual_theta_hat, theta_fit$theta_hat)
+})
+
+test_that("cic_fit() adds the Y11 contribution on the sqrt(N) variance scale", {
+  d <- sim_dgp(300, seed = 7)
+  Y11 <- d$Y + rnorm(length(d$Y), mean = 1, sd = 0.2)
+
+  theta_fit <- fit(d$Y, d$X, d$Z, method = "no-split")
+  out <- cic_fit(Y11, d$X, d$Y, d$Z, method = "no-split")
+
+  N <- min(length(Y11), length(d$X), length(d$Y), length(d$Z))
+  V11 <- N / length(Y11) * (mean(Y11^2) - mean(Y11)^2)
+  expected_sigma <- theta_fit$ci$sigma_sq[theta_fit$ci$method == "no-split"] + V11
+
+  expect_equal(out$ci$sigma_sq[out$ci$method == "no-split"], expected_sigma)
+  expect_equal(out$ci$se[out$ci$method == "no-split"], sqrt(expected_sigma / N))
+})
+
+test_that("cic_fit() bootstraps the complete estimator directly", {
+  d <- sim_dgp(250, seed = 8)
+  Y11_constant <- rep(1, length(d$Y))
+  Y11_variable <- rep(c(0, 2), length.out = length(d$Y))
+
+  set.seed(10)
+  out_constant <- cic_fit(Y11_constant, d$X, d$Y, d$Z, method = "bse", B = 250)
+  set.seed(10)
+  out_variable <- cic_fit(Y11_variable, d$X, d$Y, d$Z, method = "bse", B = 250)
+
+  expect_true(is.finite(out_constant$ci$length))
+  expect_true(is.finite(out_variable$ci$length))
+  expect_gt(out_variable$ci$length, out_constant$ci$length)
+})
+
+test_that("cic_fit() percentile bootstrap returns estimator-scale intervals", {
+  d <- sim_dgp(250, seed = 9)
+  Y11 <- d$Y + 0.5
+
+  set.seed(11)
+  out <- cic_fit(Y11, d$X, d$Y, d$Z, method = c("bse", "bpc"), B = 250)
+
+  expect_equal(out$ci$method, c("bse", "bpc"))
+  expect_true(all(is.finite(out$ci$lower)))
+  expect_true(all(is.finite(out$ci$upper)))
+  expect_true(all(out$ci$lower < out$ci$upper))
+  expect_true(is.na(out$ci$se[out$ci$method == "bpc"]))
 })

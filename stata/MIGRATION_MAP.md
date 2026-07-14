@@ -1,4 +1,4 @@
-# Migration Map: R package `cicinference` to Stata/Mata
+# Migration Map: R package `quantcdf.inference` to Stata/Mata
 
 Status: Phase 1 inventory only. No Stata implementation has been started.
 
@@ -16,7 +16,7 @@ Primary exported functions from `NAMESPACE`:
 
 | R function | Source | Role | Proposed Stata/Mata target |
 |---|---|---|---|
-| `cic_inference()` | `R/cic.R` | Main user-facing CiC estimator and CI constructor | `stata/ado/cicinference.ado`, `stata/mata/cicinference_main.mata` |
+| `fit()` | `R/cic.R` | Main user-facing quantile estimator and CI constructor | `stata/ado/cicinference.ado`, `stata/mata/cicinference_main.mata` |
 | `qY_dgp()` | `R/data-generating.R` | Quantile function for simulation DGP | Optional: `stata/mata/cicinference_dgp.mata` or test-only `.do`/Mata helper |
 | `theta_true()` | `R/data-generating.R` | Closed-form true DGP parameter | Optional: `stata/mata/cicinference_dgp.mata` or reference-output scripts |
 | `sim_dgp()` | `R/data-generating.R` | Simulation helper for examples/tests | `stata/tests/make_reference_outputs.R`; optional Stata example helper |
@@ -25,11 +25,11 @@ Registered S3 methods:
 
 | R method | Source | Role | Proposed Stata/Mata target |
 |---|---|---|---|
-| `summary.cic_inference()` | `R/print_summary.R` | Printed estimator summary | `stata/ado/cicinference.ado`, `stata/ado/cicinference.sthlp` |
-| `coef.cic_inference()` | `R/print_summary.R` | Extract point estimate | Stored result, likely `e(theta)` or `r(theta)` |
-| `confint.cic_inference()` | `R/print_summary.R` | Extract CI matrix | Stored results matrix, likely `e(ci)` or `r(ci)` |
+| `summary.quantcdf_fit()` | `R/print_summary.R` | Printed estimator summary | `stata/ado/cicinference.ado`, `stata/ado/cicinference.sthlp` |
+| `coef.quantcdf_fit()` | `R/print_summary.R` | Extract point estimate | Stored result, likely `e(theta)` or `r(theta)` |
+| `confint.quantcdf_fit()` | `R/print_summary.R` | Extract CI matrix | Stored results matrix, likely `e(ci)` or `r(ci)` |
 
-Note: `NAMESPACE` exports class methods for `cic_inference`. Some tests still expect class `"cic"` and fields/options named `h`; the current implementation returns class `"cic_inference"` and stores `epsilon_n`.
+Note: `NAMESPACE` exports class methods for `quantcdf_fit`; the R package stores the split/no-split bandwidth multiplier as `epsilon_n` and the Athey-Imbens bandwidth as `h_ai`.
 
 ## Internal R functions
 
@@ -41,8 +41,8 @@ Note: `NAMESPACE` exports class methods for `cic_inference`. Some tests still ex
 | `.fast_eta()` | `R/utils.R` | Fast double-integral/eta variance term | `stata/mata/cicinference_variance.mata` |
 | `.panel_no_split_estimator()` | `R/utils.R` | Panel-data paired-sample no-split estimator | `stata/mata/cicinference_main.mata`, `stata/mata/cicinference_variance.mata` |
 | `.panel_split_estimator()` | `R/utils.R` | Panel-data paired-sample split estimator | `stata/mata/cicinference_main.mata`, `stata/mata/cicinference_variance.mata` |
-| `.cic_inference_table()` | `R/print_summary.R` | Formats standard errors, test statistics, p-values | `stata/ado/cicinference.ado` |
-| `log_timing()` | nested in `cic_inference()` | Optional timing messages | `stata/ado/cicinference.ado` |
+| `.quantcdf_table()` | `R/print_summary.R` | Formats standard errors, test statistics, p-values | `stata/ado/cicinference.ado` |
+| `log_timing()` | nested in `fit()` | Optional timing messages | `stata/ado/cicinference.ado` |
 | `.make_density_estimator()$estimate()` | closure | Cached density evaluation for one `(epsilon, pointwise)` key | `stata/mata/cicinference_density.mata` |
 | `.make_density_estimator()$reset()` | closure | Clears R cache | Usually unnecessary in Stata; use local Mata structs/vectors |
 
@@ -52,17 +52,17 @@ All compiled functions are in `src/Density_cic_boostrap_functions.cpp` and are c
 
 | C++ function | R caller | Role | Complexity | Proposed Mata target |
 |---|---|---|---|---|
-| `f_y_hat_epnechikov()` | `cic_inference(method = "kde")` | Epanechnikov density estimate using sorted centered `Y`, prefix sums, and variable bandwidths | `O(n log n + m log n)` time, `O(n)` memory | `stata/mata/cicinference_density.mata` |
+| `f_y_hat_epnechikov()` | `fit(method = "ai")` | Epanechnikov density estimate using sorted centered Sample 1, prefix sums, and AI bandwidth | `O(n log n + m log n)` time, `O(n)` memory | `stata/mata/cicinference_density.mata` |
 | `rect_counts_rcpp()` | `.make_density_estimator()` | Counts sorted observations in `[x_eval - h, x_eval + h]` via binary search | `O(m log n)` time | `stata/mata/cicinference_density.mata` |
 | `counts_to_density()` | `.make_density_estimator()` | Converts rectangle counts to `count / (2*n*h)` | `O(m)` time | `stata/mata/cicinference_density.mata` |
-| `boot_core()` | `cic_inference(method = "bse"|"bpc")` | Nonparametric bootstrap for theta using multinomial counts for sorted `Y` and `Z`, and resampled `X` | `O(B*(n1+n3+n2*(log n1+log n3)))` time | `stata/mata/cicinference_bootstrap.mata` |
+| `boot_core()` | `fit(method = "bse"|"bpc")` | Nonparametric bootstrap for theta using multinomial counts for sorted Sample 1 and Sample 3, and resampled Sample 2 | `O(B*(n1+n3+n2*(log n1+log n3)))` time | `stata/mata/cicinference_bootstrap.mata` |
 
 Important spelling note: the exported C++ function name is `f_y_hat_epnechikov`, matching the current R call, even though the conventional spelling is Epanechnikov.
 
 ## Function dependency graph
 
 ```text
-cic_inference()
+fit()
   |-- stats::qnorm()
   |-- input validation, warning, timing setup
   |-- default epsilon_n: function(n) 1/log(n)
@@ -125,16 +125,16 @@ cic_inference()
   |-- same core dependencies as .panel_no_split_estimator()
   `-- different asymptotic scaling with N = min(n1, n2)
 
-summary.cic_inference()
-  |-- .cic_inference_table()
+summary.quantcdf_fit()
+  |-- .quantcdf_table()
   |     |-- stats::qnorm()
   |     `-- stats::pnorm()
   `-- print()
 
-confint.cic_inference()
+confint.quantcdf_fit()
   `-- stored object$ci
 
-coef.cic_inference()
+coef.quantcdf_fit()
   `-- stored object$theta_hat
 
 sim_dgp()
@@ -149,7 +149,7 @@ theta_true()
 
 ## Major function ledger
 
-### `cic_inference()`
+### `fit()`
 
 - Inputs: numeric vectors `Y`, `X`, `Z`; `method`; bootstrap count `B`; `epsilon_n` scalar/function/NULL; CI `level`; `panel_data`; `timings`.
 - Outputs: S3 list with `theta_hat`, `ci`, `level`, sample sizes `n`, requested `method`, `panel_data`, and `epsilon_n`.
@@ -239,16 +239,16 @@ theta_true()
 - Complexity: roughly `O(n log n)`.
 - Target: `cicinference_main.mata` plus shared quantile/density/variance helpers.
 
-### `.cic_inference_table()`
+### `.quantcdf_table()`
 
-- Inputs: `cic_inference` object.
+- Inputs: `quantcdf_fit` object.
 - Outputs: data frame with method, standard error, t statistic, p-value, CI bounds, and length.
 - Side effects: none.
 - Mathematical role: display-only post-processing; derives standard errors from CI length except for percentile bootstrap.
 - Complexity: `O(k)` for number of methods.
 - Target: ado display and stored-results formatting.
 
-### `summary.cic_inference()`
+### `summary.quantcdf_fit()`
 
 - Inputs: fitted object, `digits`, `...`.
 - Outputs: invisibly returns object.
@@ -257,7 +257,7 @@ theta_true()
 - Complexity: `O(k)`.
 - Target: `cicinference.ado` display block and `.sthlp` examples.
 
-### `coef.cic_inference()`
+### `coef.quantcdf_fit()`
 
 - Inputs: fitted object.
 - Outputs: scalar `theta_hat`.
@@ -266,7 +266,7 @@ theta_true()
 - Complexity: `O(1)`.
 - Target: stored result scalar.
 
-### `confint.cic_inference()`
+### `confint.quantcdf_fit()`
 
 - Inputs: fitted object; optional `level`.
 - Outputs: matrix of lower/upper CI bounds with method row names.
@@ -332,7 +332,7 @@ theta_true()
 
 | Component | Current R behavior | Stata target |
 |---|---|---|
-| Main command | `cic_inference(Y, X, Z, method=..., ...)` | `cicinference y x z, method(...) ...` |
+| Main command | `fit(sample1, sample2, sample3, method=..., ...)` | `cicinference y x z, method(...) ...` |
 | Multiple methods | R accepts a character vector and returns one CI row per method | Stata option may accept one or more methods, or repeatable/multi-token `method()` syntax |
 | Bootstrap options | `B`, with minimum coerced to 200 after warning | `bootstrap(#)` or `breps(#)`; preserve minimum/warning behavior |
 | Bandwidth | `epsilon_n = NULL` means `1/log(n2)`; function values allowed in R | Stata should support scalar `epsilon(#)` and default `1/log(n2)`; function-valued option likely not portable |

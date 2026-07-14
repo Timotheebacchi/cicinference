@@ -1,10 +1,13 @@
 ^\.github$
+^\.codex$
+^AGENTS\.md$
+^stata$
 ^test_readme\.R$
 ^\.git($|/)
 ^\.gitignore$
 ^\.DS_Store$
 ^\.\.Rcheck($|/)
-^cic\.Rcheck($|/)
-^cic_.*\.tar\.gz$
+^quantcdf\.inference\.Rcheck($|/)
+^quantcdf\.inference_.*\.tar\.gz$
 ^src/.*\.(o|so|dll)$
 ^\.vscode$

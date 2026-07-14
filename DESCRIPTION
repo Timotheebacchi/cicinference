@@ -1,22 +1,35 @@
-Package: cicinference
-Title: Library of variance estimators in Changes-in-Changes (CiC) design
+Package: quantcdf.inference
+Title: Inference for Empirical Quantile-Based Estimators
 Version: 0.1.0
-Author: Timothée Bacchi [aut, cre]
-Authors@R: person("Timothée", "Bacchi", email = "timothee.bacchi@etu.minesparis.psl.eu", role = c("aut", "cre"))
-Maintainer: Timothée Bacchi <timothee.bacchi@etu.minesparis.psl.eu>
-Description: Provides core estimation and inference routines for the empirical
-    quantile-based Changes-in-Changes (CiC) counterfactual estimator, defined
-    as the average of quantile-transformed ranks. Implements the novel
-    asymptotic variance estimators developed by Chhor, D'Haultfoeuille,
-    L'Hour, and Mugnier (2026), accommodating both standard independent
-    cross-sections and paired panel data configurations. Inference methods
-    include full-sample analytical (no-split) plug-in variance estimation,
-    sample-splitting techniques, kernel-density-based (KDE) localized
-    residual smoothing, and non-parametric bootstrap alternatives (both
-    standard-error and percentile intervals). Density estimators utilize a
-    user-controlled bandwidth framework with adaptive scaling. Computational
-    performance is heavily optimized via 'Rcpp' bindings alongside robust
-    input validation and sanitization safeguards.
+Authors@R: c(
+    person("Timothée", "Bacchi",
+           email = "timothee.bacchi@etu.minesparis.psl.eu",
+           role = c("aut", "cre"),
+           comment = c(note = "Research assistant of Martin Mugnier")),
+    person("Julien", "Chhor",
+           email = "julien.chhor@tse-fr.eu",
+           role = "aut",
+           comment = c(affiliation = "Toulouse School of Economics, University of Toulouse Capitole, Toulouse, France")),
+    person("Xavier", "D'Haultfoeuille",
+           email = "xavier.dhaultfoeuille@ensae.fr",
+           role = "aut",
+           comment = c(affiliation = "CREST-ENSAE")),
+    person("Jérémy", "L'Hour",
+           email = "jeremy.l.hour@ensae.fr",
+           role = "aut",
+           comment = c(affiliation = "CFM & CREST-ENSAE")),
+    person("Martin", "Mugnier",
+           email = "martin.mugnier@psemail.eu",
+           role = "aut",
+           comment = c(affiliation = "Paris School of Economics"))
+    )
+Description: Provides estimation and inference routines for empirical
+    quantile-based estimators of E[F_Y^{-1}(F_Z(X))]. Implements asymptotic
+    variance estimators studied by Chhor, D'Haultfoeuille, L'Hour, and
+    Mugnier (2026), including full-sample plug-in, sample-splitting, and
+    Athey-Imbens methods, plus standard-error and percentile bootstrap
+    intervals. Also provides a Changes-in-Changes wrapper for independent
+    repeated cross-sections.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

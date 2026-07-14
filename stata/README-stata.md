@@ -1,6 +1,7 @@
 # cicinference Stata Migration
 
-This directory contains the Stata port of the R package `cicinference`.
+This directory contains the Stata port accompanying the R package
+`quantcdf.inference`.
 
 The GitHub source tree intentionally includes development material such as
 reference CSVs, Stata `.do` tests, migration notes, and validation scripts.

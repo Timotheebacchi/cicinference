@@ -1,8 +1,8 @@
 ---
-title: "Inference for Empirical Quantile-Based Changes-in-Changes"
+title: "Inference for Empirical Quantile-Based Estimators"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Inference for Empirical Quantile-Based Changes-in-Changes}
+  %\VignetteIndexEntry{Inference for Empirical Quantile-Based Estimators}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,20 +15,19 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(cicinference)
+library(quantcdf.inference)
 ```
 
 ## Overview
 
-The `cicinference` package implements the estimation and inference framework developed by **Chhor, d'Haultfœuille, L'Hour, and Mugnier (2026)** in *"Asymptotic Properties of Empirical Quantile-Based Estimators"*. 
+The package implements estimation and inference for parameters of the form
+$\theta_0 = E[F_Y^{-1}(F_Z(X))]$, as studied by Chhor, D'Haultfœuille,
+L'Hour, and Mugnier (2026).
 
-This framework generalizes the classic Changes-in-Changes (CiC) model to much weaker and more realistic conditions. Notably, it allows for unbounded outcome variables (e.g., wages, profits) and strictly weaker smoothness assumptions.
-
-The package estimates the parameter $\theta_0 = E[F_Y^{-1}(F_Z(X))]$ and provides several types of robust asymptotic and bootstrap-based confidence intervals.
+The estimator uses empirical distribution functions and the left-continuous
+empirical quantile convention, including $F_Y^{-1}(0) = Y_{(1)}$.
 
 ## Simulate Data
-
-We can use the built-in simulation helper `sim_dgp` to generate cross-sectional data:
 
 ```{r simulate-data}
 set.seed(42)
@@ -40,88 +39,87 @@ head(d$X)
 head(d$Z)
 ```
 
-## Input validation
+## Fit The Quantile-Based Estimator
 
-The package will warn for non-vector inputs, many tied values, and invalid bandwidths.
-Inspect warnings produced by `cic_inference()` when running your data.
-
-## Estimation (Cross-Sectional Data)
-
-The `method` argument accepts one or several interval constructors.
+The first three inputs are Sample 1, Sample 2, and Sample 3, corresponding to
+$Y$, $X$, and $Z$ in the paper.
 
 ```{r estimation}
-fit <- cic_inference(
-  d$Y, d$X, d$Z,
-  method = c("no-split", "split", "kde", "bse", "bpc"),
+out <- fit(
+  sample1 = d$Y,
+  sample2 = d$X,
+  sample3 = d$Z,
+  method = c("no-split", "split", "ai", "bse", "bpc"),
   B = 1000,
   timings = TRUE
 )
-fit$theta_hat
-fit$ci
+out$theta_hat
+out$ci
 ```
 
-The first three methods are asymptotic constructions:
+The asymptotic methods are:
 
 - `no-split`: full-sample plug-in variance estimator
 - `split`: sample-splitting variance estimator
-- `kde`: kernel-density-based variance estimator
+- `ai`: Athey-Imbens variance estimator
 
-The bootstrap methods (`bse` and `bpc`) are included for robustness checks.
+The split and no-split estimators use the varying bandwidth
+$h_{n_2}(u) = \epsilon_{n_2}u(1-u)$, with default
+$\epsilon_{n_2} = 1/\log(n_2)$. The Athey-Imbens method uses an Epanechnikov
+density estimator for Sample 1 with $h_{AI} = 1.06 n_1^{-1/5}/\widehat{sd}(Y)$.
+
+## Changes-in-Changes Contrast
+
+`cic_fit()` estimates
+`mean(Y11) - fit(sample1 = Y01, sample2 = Y10, sample3 = Y00)$theta_hat`.
+
+```{r cic-fit}
+Y11 <- d$Y + 0.5
+cic <- cic_fit(
+  Y11 = Y11,
+  Y10 = d$X,
+  Y01 = d$Y,
+  Y00 = d$Z,
+  method = c("no-split", "ai", "bse"),
+  B = 1000
+)
+cic$theta_hat
+cic$ci
+```
+
+For analytic methods, `cic_fit()` adds the independent repeated-cross-section
+contribution of `Y11` on the same `sqrt(N)` asymptotic variance scale. For
+bootstrap methods, each replication independently resamples all four samples
+and recomputes the complete estimator.
 
 ## Panel Data Estimation
 
-When working with panel data, the pre-treatment and post-treatment variables for the control group ($Z$ and $Y$) are paired (measured on the same individuals over two periods). Therefore, they must have the exact same length (`length(Y) == length(Z)`).
-
-To trigger the panel-specific splitting and plug-in estimators derived by Chhor et al. (2026), set `panel_data = TRUE`:
+For paired samples, `panel_data = TRUE` remains available for `no-split` and
+`split` in `fit()`.
 
 ```{r estimation-panel}
-# Simulating a panel structure where Y and Z have matching lengths
 n_panel <- 400
-Y_panel <- rnorm(n_panel)
-Z_panel <- Y_panel + rnorm(n_panel, sd = 0.5) # Paired baseline
-X_panel <- rnorm(300)
+sample1_panel <- rnorm(n_panel)
+sample3_panel <- sample1_panel + rnorm(n_panel, sd = 0.5)
+sample2_panel <- rnorm(300)
 
-fit_panel <- cic_inference(
-  Y = Y_panel, 
-  X = X_panel, 
-  Z = Z_panel,
+out_panel <- fit(
+  sample1 = sample1_panel,
+  sample2 = sample2_panel,
+  sample3 = sample3_panel,
   method = c("no-split", "split"),
   panel_data = TRUE,
   timings = TRUE
 )
-fit_panel$theta_hat
-fit_panel$ci
+out_panel$theta_hat
+out_panel$ci
 ```
 
-## Compare Methods
-
-When you request several methods at once, the results are returned in a summary table.
-
-```{r compare-methods}
-fit$ci[, c("method", "lower", "upper", "length")]
-```
-
-You can also compare the fitted object with its S3 helpers:
+## S3 Helpers
 
 ```{r helpers}
-coef(fit)
-confint(fit)
-summary(fit)
+coef(out)
+confint(out)
+summary(out)
+summary(cic)
 ```
-
-## Visualization
-
-Print the CI table to compare the bounds across methods:
-
-```{r plot-fit}
-print(fit$ci)
-```
-
-## Practical Recommendations
-
-Based on the theoretical results of Chhor et al. (2026):
-
-1. **Use `split` (Sample-Splitting) for smaller samples**: It provides excellent coverage and avoids over-optimistic (too narrow) intervals when sample size is moderate.
-2. **Compare with `bpc`**: Use the bootstrap percentile method as a finite-sample robustness check.
-3. **Specify `panel_data = TRUE`** when your control group data is paired, to correctly account for the temporal correlation within subjects.
----

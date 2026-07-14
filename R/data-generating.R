@@ -43,9 +43,9 @@
   #' @param seed Random seed (default: NULL)
   #' @param panel_data Logical: if TRUE, generate a paired (Y, Z) sample for the panel-data workflow.
   #' @return A list with elements:
-  #' \item{Y}{Outcome variable}
-  #' \item{X}{Treatment/endogenous variable}
-  #' \item{Z}{Instrument/exogenous variable}
+	  #' \item{Y}{Sample 1}
+	  #' \item{X}{Sample 2}
+	  #' \item{Z}{Sample 3}
   #' @export
   #' @examples
   #' set.seed(2026)

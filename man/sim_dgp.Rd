@@ -31,9 +31,9 @@ sim_dgp(
 }
 \value{
 A list with elements:
-\item{Y}{Outcome variable}
-\item{X}{Treatment/endogenous variable}
-\item{Z}{Instrument/exogenous variable}
+\item{Y}{Sample 1}
+\item{X}{Sample 2}
+\item{Z}{Sample 3}
 }
 \description{
 Simulates a dataset from the Data Generating Process (DGP)
